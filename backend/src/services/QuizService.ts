@@ -5,13 +5,12 @@ import { QuizType, QuizContext } from '@prisma/client';
 
 class QuizService {
   /**
-   * Lấy danh sách quiz của user (có thể filter theo context, lesson, flashcard set)
+   * Lấy danh sách quiz của user (flashcard sets only)
    */
   async getUserQuizzes(
     userId: number,
     options?: {
       context?: QuizContext;
-      lessonId?: number;
       flashcardSetId?: number;
       limit?: number;
     }
@@ -19,17 +18,11 @@ class QuizService {
     const where: any = { user_id: userId };
 
     if (options?.context) where.context = options.context;
-    if (options?.lessonId) where.lesson_id = options.lessonId;
     if (options?.flashcardSetId) where.flashcard_set_id = options.flashcardSetId;
 
     const quizzes = await prisma.quizzes.findMany({
       where,
       include: {
-        lesson: {
-          include: {
-            theme: true,
-          },
-        },
         flashcard_set: true,
       },
       orderBy: {
@@ -42,26 +35,9 @@ class QuizService {
   }
 
   /**
-   * Lấy available final quizzes (chưa complete hoặc có thể redo)
-   * - Theo lesson (vocab_end)
-   * - Theo flashcard set (flashcard_set)
+   * Lấy available quizzes (flashcard sets only)
    */
   async getAvailableQuizzes(userId: number) {
-    // Lấy tất cả lessons có vocab
-    const lessonsWithVocab = await prisma.lesson.findMany({
-      where: {
-        vocabs: {
-          some: {},
-        },
-      },
-      include: {
-        theme: true,
-        _count: {
-          select: { vocabs: true },
-        },
-      },
-    });
-
     // Lấy tất cả flashcard sets của user
     const flashcardSets = await prisma.userFlashcardSets.findMany({
       where: {
@@ -81,7 +57,6 @@ class QuizService {
         is_passed: true,
       },
       select: {
-        lesson_id: true,
         flashcard_set_id: true,
         context: true,
         score: true,
@@ -90,25 +65,6 @@ class QuizService {
       orderBy: {
         completed_at: 'desc',
       },
-    });
-
-    // Map quiz data
-    const lessonQuizzes = lessonsWithVocab.map((lesson) => {
-      const lastQuiz = completedQuizzes.find(
-        (q) => q.lesson_id === lesson.id && q.context === 'vocab_end'
-      );
-
-      return {
-        type: 'lesson' as const,
-        id: lesson.id,
-        name: lesson.name,
-        theme: lesson.theme.name,
-        level: lesson.level,
-        vocabCount: lesson._count.vocabs,
-        lastScore: lastQuiz?.score,
-        lastCompletedAt: lastQuiz?.completed_at,
-        isPassed: !!lastQuiz,
-      };
     });
 
     const flashcardQuizzes = flashcardSets.map((set) => {
@@ -131,53 +87,7 @@ class QuizService {
     });
 
     return {
-      lessonQuizzes,
       flashcardQuizzes,
-    };
-  }
-
-  /**
-   * Tạo quiz mới cho lesson
-   */
-  async createLessonQuiz(userId: number, lessonId: number, quizType: QuizType = 'mixed') {
-    // Kiểm tra lesson có tồn tại
-    const lesson = await prisma.lesson.findUnique({
-      where: { id: lessonId },
-      include: {
-        theme: true,
-        vocabs: true,
-      },
-    });
-
-    if (!lesson) {
-      throw new AppError('Lesson not found', 404);
-    }
-
-    if (lesson.vocabs.length === 0) {
-      throw new AppError('Lesson has no vocabulary', 400);
-    }
-
-    // Generate questions từ vocab
-    const questions = this.generateQuestions(lesson.vocabs, quizType);
-
-    // Tạo quiz record (chưa có answers)
-    const quiz = await prisma.quizzes.create({
-      data: {
-        user_id: userId,
-        lesson_id: lessonId,
-        type: quizType,
-        context: 'vocab_end',
-        theme_tag: lesson.theme.name,
-        questions_json: questions,
-        answers_json: [],
-        score: 0,
-        is_passed: false,
-      },
-    });
-
-    return {
-      quiz,
-      questions,
     };
   }
 

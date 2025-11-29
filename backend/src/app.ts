@@ -10,11 +10,6 @@ import AppError from './utils/AppError';
 import { csrfController } from './controllers/AuthController';
 import { csrfMiddleware } from './utils/csrf';
 import AuthRoute from './routes/AuthRoute';
-import UserRoute from './routes/UserRoute';
-import StatsRoute from './routes/StatsRoute';
-import VocabRoute from './routes/VocabRoute';
-import WritingRoute from './routes/WritingRoute';
-import CloudinaryRoute from './routes/CloudinaryRoute';
 import FlashcardRoute from './routes/FlashcardRoute';
 import QuizRoute from './routes/QuizRoute';
 
@@ -71,13 +66,8 @@ const authLimiter = rateLimit({
 // Tuy nhiên, nó vẫn cần CSRF Protection để thiết lập cookie csurf.
 app.get('/api/auth/csrf', csrfMiddleware, csrfController);
 
-// Định nghĩa các Route API
+// Định nghĩa các Route API - FLASHCARD & QUIZ SYSTEM ONLY
 app.use('/api/auth', authLimiter, AuthRoute); // Apply limiter chỉ cho auth
-app.use('/api/user', UserRoute);
-app.use('/api/stats', StatsRoute);
-app.use('/api/vocab', VocabRoute);
-app.use('/api/writing', WritingRoute);
-app.use('/api/cloudinary', CloudinaryRoute);
 app.use('/api/flashcards', FlashcardRoute);
 app.use('/api/quiz', QuizRoute);
 

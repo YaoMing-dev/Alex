@@ -216,12 +216,7 @@ async function seedFlashcards() {
     }
 
     // 2. Lấy tất cả vocab có sẵn
-    const allVocabs = await prisma.vocab.findMany({
-      include: {
-        theme: true,
-        lesson: true,
-      },
-    });
+    const allVocabs = await prisma.vocab.findMany();
 
     console.log(`📚 Tìm thấy ${allVocabs.length} vocab trong database\n`);
 
@@ -245,21 +240,11 @@ async function seedFlashcards() {
         },
       });
 
-      // Tìm vocab phù hợp với theme tag (nếu có theme match)
-      // Hoặc random vocab nếu không match
-      let matchingVocabs = allVocabs.filter((vocab) =>
-        vocab.theme?.name?.toLowerCase().includes(setConfig.theme_tag.toLowerCase())
-      );
-
-      // Nếu không có vocab match, lấy random
-      if (matchingVocabs.length === 0) {
-        matchingVocabs = allVocabs;
-      }
-
+      // Lấy random vocab cho mỗi set
       // Lấy 10-24 vocab ngẫu nhiên (như trong design specs)
       const cardCount = [12, 20, 20, 10, 20, 24, 10, 15, 18, 22, 14, 16, 12, 19, 17, 21, 13, 11, 23, 8][i];
-      const shuffled = matchingVocabs.sort(() => 0.5 - Math.random());
-      const selectedVocabs = shuffled.slice(0, Math.min(cardCount, matchingVocabs.length));
+      const shuffled = allVocabs.sort(() => 0.5 - Math.random());
+      const selectedVocabs = shuffled.slice(0, Math.min(cardCount, allVocabs.length));
 
       // Tạo flashcard cards
       for (const vocab of selectedVocabs) {

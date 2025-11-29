@@ -9,41 +9,9 @@ const SEEDS_DIR = path.join(__dirname, 'seeds');
 
 async function seedFromCSV() {
   try {
-    console.log('BẮT ĐẦU SEED DỮ LIỆU TỪ CSV (DÙNG ID TỪ FILE)');
+    console.log('BẮT ĐẦU SEED DỮ LIỆU CHO FLASHCARD & QUIZ SYSTEM');
 
-    // 1. SEED THEME (dùng id từ CSV)
-    // await seedTable('Theme', 'Theme.csv', (record: any) => ({
-    //   id: parseInt(record.id),
-    //   name: record.name,
-    //   level: record.level as 'Beginner' | 'Intermediate' | 'Advanced',
-    //   imageUrl: record.imageUrl || null,
-    //   created_at: new Date(record.created_at),
-    // }));
-
-    // 2. SEED LESSON (dùng id + theme_id từ CSV)
-    // await seedTable('Lesson', 'Lesson.csv', (record: any) => ({
-    //   id: parseInt(record.id),
-    //   name: record.name,
-    //   order: parseInt(record.order),
-    //   level: record.level as 'Beginner' | 'Intermediate' | 'Advanced',
-    //   theme_id: parseInt(record.theme_id),
-    //   imageUrl: record.imageUrl || null,
-    //   created_at: new Date(record.created_at),
-    // }));
-
-    // 3. SEED IELTS REPOSITORY
-    await seedTable('ieltsRepository', 'IeltsRepository.csv', (record: any) => ({
-      id: parseInt(record.id),
-      type: record.type as 'Task1' | 'Task2',
-      description: record.description,
-      prompt: record.prompt,
-      level: record.level as 'Beginner' | 'Intermediate' | 'Advanced',
-      image_url: record.image_url || null,
-      sample_answer: record.sample_answer || null,
-      created_at: new Date(record.created_at),
-    }));
-
-    // 4. SEED VOCAB
+    // SEED VOCAB (for flashcards)
     await seedTable('vocab', 'Vocab.csv', (record: any) => ({
       id: parseInt(record.id),
       internalId: record.internalId,
@@ -58,11 +26,9 @@ async function seedFromCSV() {
       audio_url: record.audio_url || null,
       audio_url_uk: record.audio_url_uk || null,
       created_at: new Date(record.created_at),
-      theme_id: record.theme_id ? parseInt(record.theme_id) : null,
-      lesson_id: record.lesson_id ? parseInt(record.lesson_id) : null,
     }));
 
-    console.log('SEED HOÀN TẤT – IELTS & VOCAB ĐÃ ĐƯỢC KHÔI PHỤC!');
+    console.log('SEED HOÀN TẤT – VOCAB ĐÃ ĐƯỢC SEED!');
   } catch (error) {
     console.error('LỖI SEED:', error);
     throw error;

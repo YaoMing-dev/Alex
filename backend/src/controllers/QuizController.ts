@@ -54,36 +54,6 @@ class QuizController {
   }
 
   /**
-   * POST /api/quiz/lesson/:lessonId
-   * Tạo quiz mới cho lesson
-   */
-  async createLessonQuiz(req: Request, res: Response, next: NextFunction) {
-    try {
-      const userId = req.user?.userId;
-      if (!userId) {
-        throw new AppError('User not authenticated', 401);
-      }
-
-      const lessonId = parseInt(req.params.lessonId);
-      if (isNaN(lessonId)) {
-        throw new AppError('Invalid lesson ID', 400);
-      }
-
-      const { type } = req.body;
-      const quizType = (type as QuizType) || 'mixed';
-
-      const result = await QuizService.createLessonQuiz(parseInt(userId), lessonId, quizType);
-
-      res.status(201).json({
-        success: true,
-        data: result,
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  /**
    * POST /api/quiz/flashcard/:setId
    * Tạo quiz mới cho flashcard set
    */

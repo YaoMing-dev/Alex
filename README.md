@@ -1,6 +1,20 @@
-# 🎓 EduAIon - English Learning Platform
+# 🎴 Flashcard & Quiz System
 
-Nền tảng học tiếng Anh thông minh với AI, flashcards, và quiz tương tác.
+English learning platform với Flashcard sets và Quiz tương tác.
+
+## ⚠️ Lưu ý quan trọng
+
+Branch này chỉ chứa **Flashcard & Quiz system**, không bao gồm:
+- ❌ Vocabulary Learning (Theme/Lesson)
+- ❌ Writing Practice
+- ❌ Dashboard & Stats
+- ❌ Tutorial System
+
+Chỉ có:
+- ✅ Authentication (Sign up/Sign in/Google OAuth)
+- ✅ Flashcard Sets (tạo, chỉnh sửa, xóa)
+- ✅ Quiz System (tạo quiz từ flashcard sets)
+- ✅ Vocab database (để dùng cho flashcards)
 
 ## 🚀 Quick Start
 
@@ -9,12 +23,12 @@ Nền tảng học tiếng Anh thông minh với AI, flashcards, và quiz tươn
 - PostgreSQL
 - npm hoặc yarn
 
-### Setup cho người mới clone
+### Setup
 
 #### 1. Clone Repository
 ```bash
-git clone https://gitlab.com/alexnbui/eduaion.git
-cd eduaion
+git clone https://github.com/YaoMing-dev/Alex
+cd Alex
 ```
 
 #### 2. Setup Backend
@@ -22,22 +36,26 @@ cd eduaion
 ```bash
 cd backend
 
-# Cài dependencies (tự động chạy prisma generate)
+# Cài dependencies
 npm install
 
 # Copy .env file
 cp .env.example .env
-# Trên Windows: copy .env.example .env
 
 # Cập nhật DATABASE_URL trong file .env
-# DATABASE_URL="postgresql://user:password@localhost:5432/eduaion"
+# DATABASE_URL="postgresql://user:password@localhost:5432/flashcard_quiz"
 
 # Chạy migrations
 npx prisma migrate dev
 
-# ⚠️ QUAN TRỌNG: Nếu gặp lỗi "Module '@prisma/client' has no exported member 'Level'"
-# Chạy lệnh này:
+# Generate Prisma Client
 npx prisma generate
+
+# Seed database với vocab
+npm run seed
+
+# Seed flashcards (optional - tạo demo flashcard sets)
+npx ts-node prisma/seed_flashcards.ts
 
 # Start backend server
 npm run dev
@@ -53,11 +71,8 @@ cd ../frontend
 # Cài dependencies
 npm install
 
-# Copy .env file
-cp .env.example .env.local
-# Trên Windows: copy .env.example .env.local
-
-# Cập nhật API URL trong .env.local
+# Copy .env file (nếu có .env.example)
+# Hoặc tạo file .env.local với nội dung:
 # NEXT_PUBLIC_API_URL=http://localhost:5000
 
 # Start frontend dev server
@@ -68,182 +83,116 @@ npm run dev
 
 ---
 
-## 🐛 Troubleshooting
-
-### ❌ Lỗi phổ biến khi clone
-
-#### 1. "Module '@prisma/client' has no exported member 'Level'"
-
-**Nguyên nhân:** Prisma Client chưa được generate sau khi clone
-
-**Giải pháp:**
-```bash
-cd backend
-npx prisma generate
-npm run dev
-```
-
-#### 2. "Can't reach database server"
-
-**Giải pháp:**
-1. Kiểm tra PostgreSQL đang chạy
-2. Kiểm tra `DATABASE_URL` trong `.env`
-3. Tạo database nếu chưa có:
-   ```bash
-   # Đăng nhập PostgreSQL
-   psql -U postgres
-
-   # Tạo database
-   CREATE DATABASE eduaion;
-
-   # Thoát
-   \q
-   ```
-
-#### 3. Migration failed
-
-**Giải pháp:**
-```bash
-cd backend
-# Reset và chạy lại migrations
-npx prisma migrate reset
-npx prisma migrate dev
-```
-
----
-
 ## 📁 Project Structure
 
 ```
-eduaion/
+Alex/
 ├── backend/              # Backend API (Express + Prisma + PostgreSQL)
-│   ├── prisma/          # Database schema & migrations
+│   ├── prisma/
+│   │   ├── schema.prisma          # Database schema (Users, Vocab, Flashcard, Quiz)
+│   │   ├── seed.ts                # Seed vocab data
+│   │   └── seed_flashcards.ts     # Seed demo flashcard sets
 │   ├── src/
-│   │   ├── controllers/ # Route controllers
-│   │   ├── services/    # Business logic
-│   │   ├── routes/      # API routes
-│   │   └── utils/       # Utilities
-│   ├── scripts/         # Migration & seed scripts
-│   ├── SETUP.md         # ⭐ Chi tiết setup backend
+│   │   ├── controllers/
+│   │   │   ├── AuthController.ts
+│   │   │   ├── FlashcardController.ts
+│   │   │   └── QuizController.ts
+│   │   ├── services/
+│   │   │   ├── AuthService.ts
+│   │   │   ├── FlashcardService.ts
+│   │   │   └── QuizService.ts
+│   │   ├── routes/
+│   │   │   ├── AuthRoute.ts
+│   │   │   ├── FlashcardRoute.ts
+│   │   │   └── QuizRoute.ts
+│   │   └── utils/
 │   └── package.json
 │
-└── frontend/            # Frontend (Next.js + React + Tailwind)
+└── frontend/             # Frontend (Next.js + React + Tailwind)
     ├── src/
-    │   ├── app/         # Next.js app router
-    │   ├── components/  # React components
-    │   ├── lib/         # Utils & API clients
-    │   └── context/     # React contexts
+    │   ├── app/
+    │   │   ├── (auth)/              # Auth pages
+    │   │   ├── (protected)/
+    │   │   │   ├── flashcard/       # Flashcard pages
+    │   │   │   └── quiz/            # Quiz pages
+    │   │   └── (full_screen)/
+    │   │       └── flashcard/       # Flashcard study/quiz pages
+    │   ├── components/
+    │   │   ├── auth/                # Auth components
+    │   │   ├── quiz/                # Quiz components
+    │   │   └── common/              # Shared components
+    │   └── lib/
+    │       ├── api/
+    │       │   ├── auth.ts
+    │       │   └── flashcard.ts
+    │       └── types/
+    │           └── flashcard.ts
     └── package.json
 ```
 
-📖 **Xem chi tiết:** [backend/SETUP.md](backend/SETUP.md)
-
 ---
 
-## 🔧 Development Scripts
+## 🔧 Database Schema
 
-### Backend
-```bash
-npm run dev         # Start dev server với nodemon
-npm run migrate     # Chạy migrations
-npm run generate    # Generate Prisma Client
-npm run studio      # Mở Prisma Studio (GUI database)
+### Models
+
+#### Users
+```prisma
+model Users {
+  id                      Int
+  email                   String  @unique
+  username                String
+  passwordHash            String?
+  level                   Level   (Beginner/Intermediate/Advanced)
+
+  user_flashcard_sets     UserFlashcardSets[]
+  quizzes                 Quizzes[]
+}
 ```
 
-### Frontend
-```bash
-npm run dev         # Start Next.js dev server
-npm run build       # Build for production
-npm run start       # Start production server
-npm run lint        # Run ESLint
+#### Vocab
+```prisma
+model Vocab {
+  id                      Int
+  internalId              String  @unique
+  word                    String
+  meaning_en              String
+  meaning_vn              String?
+  ipa_us, ipa_uk          String?
+  audio_url               String?
+
+  user_flashcard_cards    UserFlashcardCards[]
+}
 ```
 
----
+#### UserFlashcardSets
+```prisma
+model UserFlashcardSets {
+  id                   Int
+  user_id              Int
+  set_name             String
+  description          String?
+  background_color     String
+  icon                 String?
 
-## 📚 Features
-
-- ✅ **Authentication**
-  - Google OAuth
-  - Email/Password login
-  - JWT tokens với refresh
-
-- ✅ **Vocabulary Learning**
-  - 5000+ từ vựng theo theme
-  - Lesson-based learning
-  - Progress tracking
-
-- ✅ **Flashcards**
-  - Tạo custom flashcard sets
-  - Flashcard mặc định cho user mới
-  - Study mode với flip animation
-
-- ✅ **Quizzes**
-  - Multiple choice (Cho nghĩa → Chọn từ)
-  - Fill in the blank (Cho nghĩa → Điền từ)
-  - Auto grading
-  - Quiz sau mỗi lesson
-
-- ✅ **Writing Practice**
-  - IELTS Writing Task 1 & 2
-  - AI feedback (coming soon)
-
-- ✅ **Progress Tracking**
-  - User stats & streaks
-  - Goals setting
-  - Activity logs
-
----
-
-## 🔐 Environment Variables
-
-### Backend `.env`
-```env
-DATABASE_URL="postgresql://user:password@localhost:5432/eduaion"
-PORT=5000
-NODE_ENV=development
-
-# JWT Secrets
-JWT_SECRET="your-secret-key-here"
-JWT_REFRESH_SECRET="your-refresh-secret-here"
-
-# Google OAuth
-GOOGLE_CLIENT_ID="your-google-client-id"
-GOOGLE_CLIENT_SECRET="your-google-client-secret"
-GOOGLE_REDIRECT_URI="http://localhost:5000/api/auth/google/callback"
-
-# Cloudinary (optional)
-CLOUDINARY_CLOUD_NAME=""
-CLOUDINARY_API_KEY=""
-CLOUDINARY_API_SECRET=""
+  user_flashcard_cards UserFlashcardCards[]
+  quizzes              Quizzes[]
+}
 ```
 
-### Frontend `.env.local`
-```env
-NEXT_PUBLIC_API_URL=http://localhost:5000
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-```
-
----
-
-## 🗄️ Database
-
-### Schema Overview
-- **Users** - User accounts & authentication
-- **Vocab** - 5000+ từ vựng
-- **Theme & Lesson** - Tổ chức từ vựng theo chủ đề
-- **UserFlashcardSets** - Custom flashcard sets
-- **Quizzes** - Quiz history & results
-- **WritingSubmissions** - IELTS writing submissions
-- **UserStats** - Progress tracking
-
-📖 **Xem chi tiết:** `backend/prisma/schema.prisma`
-
-### Prisma Commands
-```bash
-npx prisma generate       # Generate Prisma Client
-npx prisma migrate dev    # Chạy migrations
-npx prisma studio         # GUI xem database
-npx prisma migrate reset  # Reset database (⚠️ xóa data)
+#### Quizzes
+```prisma
+model Quizzes {
+  id              Int
+  user_id         Int
+  flashcard_set_id Int?
+  type            QuizType (multiple_choice/fill_blank/mixed)
+  context         QuizContext (flashcard_set/general)
+  questions_json  Json
+  answers_json    Json
+  score           Float
+  is_passed       Boolean
+}
 ```
 
 ---
@@ -256,15 +205,7 @@ POST   /api/auth/signup          - Đăng ký
 POST   /api/auth/signin          - Đăng nhập
 GET    /api/auth/google          - Google OAuth
 POST   /api/auth/refresh         - Refresh token
-POST   /api/auth/logout          - Đăng xuất
-```
-
-### Vocabulary
-```
-GET    /api/vocab/themes                    - Danh sách themes
-GET    /api/vocab/themes/:id/lessons        - Lessons của theme
-GET    /api/vocab/lessons/:id               - Chi tiết lesson
-POST   /api/vocab/lessons/:id/complete      - Hoàn thành lesson
+GET    /api/auth/csrf            - Get CSRF token
 ```
 
 ### Flashcards
@@ -272,58 +213,127 @@ POST   /api/vocab/lessons/:id/complete      - Hoàn thành lesson
 GET    /api/flashcards/sets                 - Flashcard sets của user
 GET    /api/flashcards/sets/:id             - Chi tiết set
 POST   /api/flashcards/sets                 - Tạo set mới
+PUT    /api/flashcards/sets/:id             - Update set
+DELETE /api/flashcards/sets/:id             - Xóa set
+
 POST   /api/flashcards/sets/:id/cards       - Thêm card vào set
 DELETE /api/flashcards/sets/:id/cards/:vid  - Xóa card
+PUT    /api/flashcards/sets/:id/cards/:vid  - Update card status
+
+PUT    /api/flashcards/sets/:id/study       - Update study progress
+GET    /api/flashcards/sets/:id/quiz        - Get quiz for set
+
+POST   /api/flashcards/save-from-quiz               - Save vocab from quiz
+POST   /api/flashcards/create-from-wrong-answers    - Create set from wrong answers
 ```
 
 ### Quizzes
 ```
-GET    /api/quiz/available                  - Danh sách quiz có thể làm
-POST   /api/quiz/lesson/:lessonId           - Tạo quiz cho lesson
-POST   /api/quiz/flashcard/:setId           - Tạo quiz cho flashcard set
-POST   /api/quiz/:quizId/submit             - Submit quiz
-GET    /api/quiz/history                    - Lịch sử quiz
+GET    /api/quiz/available               - Danh sách quiz có thể làm
+POST   /api/quiz/flashcard/:setId        - Tạo quiz cho flashcard set
+POST   /api/quiz/:quizId/submit          - Submit quiz answers
+GET    /api/quiz/history                 - Lịch sử quiz
 ```
 
 ---
 
 ## 🎯 User Flow
 
-### 1. Onboarding
+### 1. Authentication
 ```
-Đăng ký → Chọn level → Onboarding complete → Dashboard
-```
-
-### 2. Learning Flow
-```
-Choose Theme → Select Lesson → Study Vocab → Take Quiz → Next Lesson
+Sign up/Sign in → User Dashboard
 ```
 
-### 3. Flashcard Flow
+### 2. Flashcard Flow
 ```
-Create Set → Add Cards from Library → Study Mode → Quiz
+Create Set → Add Cards from Vocab Library → Study Mode → Take Quiz
+```
+
+### 3. Quiz Flow
+```
+Select Flashcard Set → Start Quiz → Submit Answers → View Results → Save Wrong Words
 ```
 
 ---
 
-## 🚀 Deployment
+## 🔐 Environment Variables
 
-### Backend
-```bash
-# Build
-npm run build
+### Backend `.env`
+```env
+DATABASE_URL="postgresql://user:password@localhost:5432/flashcard_quiz"
+PORT=5000
 
-# Start production
-npm start
+JWT_SECRET="your-secret-key"
+JWT_REFRESH_SECRET="your-refresh-secret"
+
+GOOGLE_CLIENT_ID="your-google-id"
+GOOGLE_CLIENT_SECRET="your-google-secret"
+GOOGLE_REDIRECT_URI="http://localhost:5000/api/auth/google/callback"
 ```
 
-### Frontend
-```bash
-# Build
-npm run build
+### Frontend `.env.local`
+```env
+NEXT_PUBLIC_API_URL=http://localhost:5000
+```
 
-# Start production
-npm start
+---
+
+## 📚 Features
+
+- ✅ **Authentication**
+  - Email/Password signup/signin
+  - Google OAuth
+  - JWT tokens với refresh mechanism
+  - CSRF protection
+
+- ✅ **Flashcards**
+  - Tạo custom flashcard sets
+  - Customizable background color, icon, size
+  - Add vocabulary from library
+  - Study mode với flip animation
+  - Progress tracking (new/learned/review/mastered)
+
+- ✅ **Quizzes**
+  - Multiple choice (Cho nghĩa tiếng Việt → Chọn từ tiếng Anh)
+  - Fill in the blank (Cho nghĩa → Điền từ)
+  - Mixed quiz mode
+  - Auto grading
+  - Save wrong words to flashcard set
+  - Quiz history tracking
+
+- ✅ **Vocabulary Library**
+  - 5000+ English words
+  - Vietnamese meanings
+  - IPA pronunciation (US/UK)
+  - Audio files (US/UK)
+  - Example sentences
+
+---
+
+## 🐛 Troubleshooting
+
+### Prisma Client errors
+```bash
+cd backend
+npx prisma generate
+npm run dev
+```
+
+### Database connection issues
+```bash
+# Check PostgreSQL is running
+# Create database
+psql -U postgres
+CREATE DATABASE flashcard_quiz;
+\q
+```
+
+### Migration issues
+```bash
+cd backend
+npx prisma migrate reset
+npx prisma migrate dev
+npm run seed
 ```
 
 ---
@@ -331,31 +341,17 @@ npm start
 ## 🤝 Contributing
 
 1. Fork repository
-2. Create feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to branch (`git push origin feature/AmazingFeature`)
-5. Create Merge Request
+2. Create feature branch
+3. Commit changes
+4. Push to branch
+5. Create Pull Request
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+MIT License
 
 ---
-
-## 👥 Team
-
-Developed with ❤️ by EduAIon Team
-
----
-
-## 📞 Support
-
-Gặp vấn đề khi setup?
-
-1. Xem [backend/SETUP.md](backend/SETUP.md) để biết chi tiết
-2. Check [Troubleshooting](#-troubleshooting) section
-3. Tạo issue tại GitLab
 
 Happy Learning! 🎉

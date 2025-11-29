@@ -8,69 +8,31 @@ generator client {
   binaryTargets   = ["native", "debian-openssl-3.0.x"]
 }
 
-// --- CORE MODELS ---
+// --- CORE MODELS FOR FLASHCARD & QUIZ SYSTEM ---
 
 model Users {
   id                      Int                    @id @default(autoincrement())
   email                   String                 @unique
-  username                String                 
-  passwordHash            String?                
+  username                String
+  passwordHash            String?
   refreshToken            String?
   provider                String?                @default("local")
-  avatar                  String?                
+  avatar                  String?
   isVerified              Boolean                @default(false)
   level                   Level                  @default(Beginner)
   created_at              DateTime               @default(now())
   updated_at              DateTime               @updatedAt
 
-  user_vocab_progress     UserVocabProgress[]
-  lesson_progress         LessonProgress[]
   user_flashcard_sets     UserFlashcardSets[]
   quizzes                 Quizzes[]
   quiz_wrong_words        QuizWrongWords[]
-  writing_submissions     WritingSubmissions[]
-  user_stats              UserStats?
-  user_goals              UserGoals[]
-  user_activity_logs      UserActivityLog[]
-  user_tutorial_progress  UserTutorialProgress[]
-}
-
-model Theme {
-  id         Int      @id @default(autoincrement())
-  name       String
-  level      Level
-  type       ThemeType @default(REGULAR)
-  imageUrl   String?
-  created_at DateTime @default(now())
-  
-  vocabs     Vocab[]
-  lessons    Lesson[]
-
-  @@unique([name, level])
-}
-
-model Lesson {
-  id         Int      @id @default(autoincrement())
-  name       String
-  order      Int
-  level      Level
-  theme_id   Int
-  created_at DateTime @default(now())
-  imageUrl   String?
-
-  theme      Theme    @relation(fields: [theme_id], references: [id])
-  vocabs     Vocab[]
-  quizzes    Quizzes[]
-  lesson_progress LessonProgress[]
-  
-  @@unique([theme_id, order])
 }
 
 model Vocab {
   id                      Int                    @id @default(autoincrement())
 
   internalId              String                 @unique
-  
+
   word                    String
   type                    String?
   cefr                    String?
@@ -83,126 +45,11 @@ model Vocab {
   audio_url_uk            String?
   created_at              DateTime               @default(now())
 
-  theme_id                Int?
-  theme                   Theme?                 @relation(fields: [theme_id], references: [id])
-
-  lesson_id               Int?
-  lesson                  Lesson?                @relation(fields: [lesson_id], references: [id])
-
-  user_vocab_progress     UserVocabProgress[]
   user_flashcard_cards    UserFlashcardCards[]
   quiz_wrong_words        QuizWrongWords[]
 }
 
-// --- USER PROGRESS MODELS ---
-
-model LessonProgress {
-  user_id Int
-  lesson_id Int     
-  study_status LessonStatus @default(NOT_STARTED)   
-  study_completed_at DateTime?    
-  last_learned_vocab_id Int?
-
-  user Users @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  lesson Lesson @relation(fields: [lesson_id], references: [id], onDelete: Cascade)
-
-  @@id([user_id, lesson_id])
-  @@map("user_lesson_progress")
-}
-
-model UserVocabProgress {
-  user_id Int
-  vocab_id Int
-  status  Status @default(new)
-
-  user    Users  @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  vocab   Vocab  @relation(fields: [vocab_id], references: [id], onDelete: Cascade)
-
-  @@id([user_id, vocab_id])
-}
-
-model Quizzes {
-  id              Int         @id @default(autoincrement())
-  user_id         Int
-  type            QuizType
-  context         QuizContext @default(general)
-  theme_tag       String?
-  questions_json  Json
-  answers_json    Json
-  score           Float
-  is_passed       Boolean     @default(false)
-  completed_at    DateTime    @default(now())
-
-  lesson_id       Int?
-  lesson          Lesson?     @relation(fields: [lesson_id], references: [id])
-
-  flashcard_set_id Int?
-  flashcard_set    UserFlashcardSets? @relation(fields: [flashcard_set_id], references: [id])
-
-  user            Users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  quiz_wrong_words QuizWrongWords[]
-}
-
-model WritingSubmissions {
-  id                       Int               @id @default(autoincrement())
-  user_id                  Int
-  topic_id                 Int?
-  content                  String
-  status                   SubmissionStatus  @default(SUBMITTED) 
-  
-  grammar_feedback_json    Json?
-  format_feedback          String?
-  paraphrasing_suggestions Json?
-  
-  band_score               Float?
-  overall_feedback_json    Json?
-  raw_ai_response          Json?
-  
-  submitted_at             DateTime          @default(now())
-  processed_at             DateTime?         
-  
-  user                     Users             @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  topics                   IeltsRepository?  @relation(fields: [topic_id], references: [id])
-}
-
-model UserStats {
-  user_id                 Int      @id
-  total_words_learned     Int      @default(0)
-  quizzes_completed       Int      @default(0)
-  writings_completed      Int      @default(0)
-  avg_band_score          Float?  
-  current_streak_days     Int      @default(0)
-  updated_at              DateTime @updatedAt
-
-  user                    Users    @relation(fields: [user_id], references: [id], onDelete: Cascade)
-}
-
-model UserActivityLog {
-  id                  Int          @id @default(autoincrement())
-  user_id             Int
-  activity_type       ActivityType // Loại hoạt động (QUIZ, WRITING, etc.)
-  value               Float        @default(1) // Giá trị/Điểm số (ví dụ: Band Score)
-  related_entity_id   Int?         // ID của WritingSubmission, Quiz, Lesson, Vocab...
-  created_at          DateTime     @default(now())
-
-  user                Users        @relation(fields: [user_id], references: [id], onDelete: Cascade)
-}
-
-model UserGoals {
-  id                    Int           @id @default(autoincrement())
-  user_id               Int
-  goal_type             GoalType      // Mục tiêu về loại hoạt động/kỹ năng
-  target_value          Float         // Giá trị mục tiêu (VD: 7.0 Band Score, 50 từ)
-  progress_value        Float         @default(0) // Tiến độ hiện tại
-  time_frame            TimeFrameType // Khung thời gian (WEEKLY, MONTHLY)
-  is_active             Boolean       @default(true)
-  created_at            DateTime      @default(now())
-  updated_at            DateTime      @updatedAt
-
-  user                  Users         @relation(fields: [user_id], references: [id], onDelete: Cascade)
-}
-
-// --- FLASHCARD, REPOSITORY MODELS ---
+// --- FLASHCARD MODELS ---
 
 model UserFlashcardSets {
   id                   Int                  @id @default(autoincrement())
@@ -234,6 +81,27 @@ model UserFlashcardCards {
   @@id([set_id, vocab_id])
 }
 
+// --- QUIZ MODELS ---
+
+model Quizzes {
+  id              Int         @id @default(autoincrement())
+  user_id         Int
+  type            QuizType
+  context         QuizContext @default(general)
+  theme_tag       String?
+  questions_json  Json
+  answers_json    Json
+  score           Float
+  is_passed       Boolean     @default(false)
+  completed_at    DateTime    @default(now())
+
+  flashcard_set_id Int?
+  flashcard_set    UserFlashcardSets? @relation(fields: [flashcard_set_id], references: [id])
+
+  user            Users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  quiz_wrong_words QuizWrongWords[]
+}
+
 model QuizWrongWords {
   user_id Int
   quiz_id Int
@@ -246,44 +114,6 @@ model QuizWrongWords {
   @@id([user_id, quiz_id, vocab_id])
 }
 
-model IeltsRepository {
-  id                    Int                  @id @default(autoincrement())
-  type                  WritingType
-  sample_answer         String? // (~250-300 từ Task 2, ~150-200 từ Task 1)
-  image_url             String? // Cho biểu đồ/đồ thị của Task 1
-  description           String
-  prompt                String
-  level                 Level
-  created_at            DateTime             @default(now())
-
-  writing_submissions WritingSubmissions[]
-}
-
-model TutorialContent {
-  id                     Int                  @id @default(autoincrement())
-  type                   WritingType
-  step_number            Int
-  title                  String
-  content_text           String
-  quiz_json              Json?
-  created_at             DateTime             @default(now())
-
-  user_tutorial_progress UserTutorialProgress[]
-}
-
-model UserTutorialProgress {
-  user_id        Int
-  tutorial_id    Int
-  completed      Boolean              @default(false)
-  quiz_score     Float?
-  completed_at   DateTime?
-
-  user             Users              @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  tutorial_content TutorialContent    @relation(fields: [tutorial_id], references: [id], onDelete: Cascade)
-
-  @@id([user_id, tutorial_id])
-}
-
 // --- ENUMS ---
 
 enum Level {
@@ -292,22 +122,11 @@ enum Level {
   Advanced
 }
 
-enum ThemeType {
-  REGULAR // Chủ đề thông thường (VD: Travel, Food, Technology)
-  SPECIAL // Chủ đề đặc biệt (VD: Basic Function Words, Numbers)
-}
-
 enum Status {
   new
   learned
   review
   mastered
-}
-
-enum LessonStatus {
-  NOT_STARTED
-  IN_PROGRESS
-  COMPLETED_STUDY
 }
 
 enum QuizType {
@@ -318,43 +137,6 @@ enum QuizType {
 }
 
 enum QuizContext {
-  vocab_end
   flashcard_set
-  tutorial_step
   general
-}
-
-enum WritingType {
-  Task1
-  Task2
-}
-
-enum SubmissionStatus {
-  SUBMITTED 
-  PROCESSING 
-  COMPLETED 
-  ERROR 
-}
-
-// Enum cho UserActivityLog
-enum ActivityType {
-  QUIZ_COMPLETED
-  WRITING_COMPLETED
-  VOCABULARY_MASTERED
-  LESSON_COMPLETED
-  // ...
-}
-
-// Enum cho UserGoals
-enum GoalType {
-  TARGET_BAND_SCORE // Mục tiêu Band Score chung
-  WRITING_SUBMISSIONS // Số lượng bài viết hoàn thành
-  VOCABULARY_LEARNED // Số lượng từ vựng đạt "mastered"
-  // ...
-}
-
-enum TimeFrameType {
-  DAILY
-  WEEKLY
-  MONTHLY
 }

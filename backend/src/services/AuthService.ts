@@ -35,22 +35,15 @@ export const signUpService = async (email: string, username: string, password: s
     // 2. Băm (Hash) mật khẩu trước khi lưu
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // 3. Tạo user + stats atomic với transaction
-    const [newUser] = await prisma.$transaction(async (tx) => {
-        const user = await tx.users.create({
-            data: {
-                email,
-                username,
-                passwordHash,
-                level: Level.Beginner,
-            },
-            select: { id: true, email: true, username: true, level: true, created_at: true },
-        });
-        await tx.userStats.create({
-            data: { user_id: user.id },
-        });
-
-        return [user];
+    // 3. Tạo user mới
+    const newUser = await prisma.users.create({
+        data: {
+            email,
+            username,
+            passwordHash,
+            level: Level.Beginner,
+        },
+        select: { id: true, email: true, username: true, level: true, created_at: true },
     });
 
     // 4. Tạo flashcard set mặc định cho user mới
@@ -84,9 +77,6 @@ export const signInService = async (email: string, password: string) => {
     // Tìm người dùng theo email (cần lấy cả passwordHash để so sánh)
     const user = await prisma.users.findUnique({
         where: { email },
-        include: {
-            user_stats: true // Lấy thêm UserStats
-        }
     });
 
     // Kiểm tra người dùng tồn tại

@@ -14,9 +14,6 @@ router.get('/available', QuizController.getAvailableQuizzes);
 // GET /api/quiz/history - Lấy lịch sử quiz
 router.get('/history', QuizController.getQuizHistory);
 
-// POST /api/quiz/lesson/:lessonId - Tạo quiz cho lesson
-router.post('/lesson/:lessonId', QuizController.createLessonQuiz);
-
 // POST /api/quiz/flashcard/:setId - Tạo quiz cho flashcard set
 router.post('/flashcard/:setId', QuizController.createFlashcardQuiz);
 
