@@ -1,0 +1,2177 @@
+From 9f8d9083f82bfd0c1678c93fa588d8a36176c73f Mon Sep 17 00:00:00 2001
+From: FemtoHell <femtohell@gmail.com>
+Date: Fri, 28 Nov 2025 10:49:51 +0700
+Subject: [PATCH 2/2] Add flashcard feature
+
+---
+ backend/prisma/seed_flashcards_all_users.ts   | 316 ++++++++++++++
+ backend/src/app.ts                            |   4 +-
+ backend/src/controllers/QuizController.ts     | 149 +++++++
+ backend/src/routes/QuizRoute.ts               |  26 ++
+ backend/src/services/QuizService.ts           | 363 ++++++++++++++++
+ frontend/next.config.ts                       |   4 +
+ .../flashcard/quiz/[id]/page.tsx              | 398 +++---------------
+ .../vocabulary/quiz/[id]/page.tsx             |  86 ++++
+ frontend/src/app/(protected)/quiz/page.tsx    | 301 +++++++++++++
+ .../src/components/quiz/QuizInterface.tsx     | 217 ++++++++++
+ frontend/src/components/quiz/QuizResult.tsx   | 120 ++++++
+ test-api.js                                   |  42 --
+ 12 files changed, 1643 insertions(+), 383 deletions(-)
+ create mode 100644 backend/prisma/seed_flashcards_all_users.ts
+ create mode 100644 backend/src/controllers/QuizController.ts
+ create mode 100644 backend/src/routes/QuizRoute.ts
+ create mode 100644 backend/src/services/QuizService.ts
+ create mode 100644 frontend/src/app/(full_screen)/vocabulary/quiz/[id]/page.tsx
+ create mode 100644 frontend/src/app/(protected)/quiz/page.tsx
+ create mode 100644 frontend/src/components/quiz/QuizInterface.tsx
+ create mode 100644 frontend/src/components/quiz/QuizResult.tsx
+ delete mode 100644 test-api.js
+
+diff --git a/backend/prisma/seed_flashcards_all_users.ts b/backend/prisma/seed_flashcards_all_users.ts
+new file mode 100644
+index 0000000..c3d22ff
+--- /dev/null
++++ b/backend/prisma/seed_flashcards_all_users.ts
+@@ -0,0 +1,316 @@
++// backend/prisma/seed_flashcards_all_users.ts
++// Seed flashcard sets for ALL users in database
++
++import { PrismaClient } from '@prisma/client';
++import * as dotenv from 'dotenv';
++import * as path from 'path';
++
++dotenv.config({ path: path.resolve(__dirname, '../.env') });
++
++const prisma = new PrismaClient();
++
++// 20 flashcard sets configuration
++const FLASHCARD_SETS = [
++  {
++    set_name: 'Art and Culture',
++    description: 'Essential vocabulary for art galleries, museums, and cultural events',
++    background_color: '#E8D68A',
++    icon: '🎨',
++    width_size: 'large',
++    height_custom: 300,
++    theme_tag: 'Art',
++  },
++  {
++    set_name: 'Animals - Pets',
++    description: 'Common pets and domestic animals vocabulary',
++    background_color: '#2C4356',
++    icon: '🐾',
++    width_size: 'small',
++    height_custom: 145,
++    theme_tag: 'Animals',
++  },
++  {
++    set_name: 'Emotions & Personality',
++    description: 'Express feelings and describe character traits',
++    background_color: '#A5BFB0',
++    icon: '😊',
++    width_size: 'medium',
++    height_custom: 200,
++    theme_tag: 'Emotions',
++  },
++  {
++    set_name: 'Accommodation & Hotels',
++    description: 'Vocabulary for booking hotels and describing living spaces',
++    background_color: '#C8CC77',
++    icon: '🏨',
++    width_size: 'small',
++    height_custom: 145,
++    theme_tag: 'Travel',
++  },
++  {
++    set_name: 'Education & Learning',
++    description: 'Academic vocabulary and educational terms',
++    background_color: '#D4D18F',
++    icon: '📚',
++    width_size: 'large',
++    height_custom: 300,
++    theme_tag: 'Education',
++  },
++  {
++    set_name: 'Animals - Farm',
++    description: 'Farm animals and agricultural vocabulary',
++    background_color: '#2C4356',
++    icon: '🐄',
++    width_size: 'medium',
++    height_custom: 200,
++    theme_tag: 'Animals',
++  },
++  {
++    set_name: 'Electronics',
++    description: 'Modern gadgets and electronic devices',
++    background_color: '#8FB5B0',
++    icon: '💻',
++    width_size: 'medium',
++    height_custom: 200,
++    theme_tag: 'Technology',
++  },
++  {
++    set_name: 'Food & Cooking',
++    description: 'Kitchen vocabulary and cooking methods',
++    background_color: '#E8D68A',
++    icon: '🍳',
++    width_size: 'medium',
++    height_custom: 220,
++    theme_tag: 'Food',
++  },
++  {
++    set_name: 'Transportation',
++    description: 'Vehicles and travel methods',
++    background_color: '#4CAF50',
++    icon: '🚗',
++    width_size: 'small',
++    height_custom: 150,
++    theme_tag: 'Travel',
++  },
++  {
++    set_name: 'Weather & Nature',
++    description: 'Climate conditions and natural phenomena',
++    background_color: '#87CEEB',
++    icon: '🌤️',
++    width_size: 'large',
++    height_custom: 280,
++    theme_tag: 'Nature',
++  },
++  {
++    set_name: 'Health & Medicine',
++    description: 'Medical terms and health-related vocabulary',
++    background_color: '#FFB6C1',
++    icon: '⚕️',
++    width_size: 'medium',
++    height_custom: 190,
++    theme_tag: 'Health',
++  },
++  {
++    set_name: 'Business & Work',
++    description: 'Professional terminology and workplace vocabulary',
++    background_color: '#D4AF37',
++    icon: '💼',
++    width_size: 'large',
++    height_custom: 260,
++    theme_tag: 'Work',
++  },
++  {
++    set_name: 'Sports & Fitness',
++    description: 'Athletic activities and exercise vocabulary',
++    background_color: '#FF6347',
++    icon: '⚽',
++    width_size: 'small',
++    height_custom: 160,
++    theme_tag: 'Sports',
++  },
++  {
++    set_name: 'Music & Entertainment',
++    description: 'Musical instruments and entertainment industry',
++    background_color: '#9370DB',
++    icon: '🎵',
++    width_size: 'medium',
++    height_custom: 210,
++    theme_tag: 'Entertainment',
++  },
++  {
++    set_name: 'Shopping & Fashion',
++    description: 'Clothing, accessories, and shopping vocabulary',
++    background_color: '#FF69B4',
++    icon: '👗',
++    width_size: 'medium',
++    height_custom: 195,
++    theme_tag: 'Fashion',
++  },
++  {
++    set_name: 'Technology & Internet',
++    description: 'Digital world and online terminology',
++    background_color: '#4169E1',
++    icon: '🌐',
++    width_size: 'large',
++    height_custom: 270,
++    theme_tag: 'Technology',
++  },
++  {
++    set_name: 'Family & Relationships',
++    description: 'Family members and relationship terms',
++    background_color: '#FFA07A',
++    icon: '👨‍👩‍👧‍👦',
++    width_size: 'small',
++    height_custom: 155,
++    theme_tag: 'Family',
++  },
++  {
++    set_name: 'Time & Dates',
++    description: 'Temporal expressions and calendar vocabulary',
++    background_color: '#20B2AA',
++    icon: '⏰',
++    width_size: 'medium',
++    height_custom: 185,
++    theme_tag: 'Time',
++  },
++  {
++    set_name: 'Home & Furniture',
++    description: 'Household items and interior design',
++    background_color: '#DEB887',
++    icon: '🛋️',
++    width_size: 'large',
++    height_custom: 290,
++    theme_tag: 'Home',
++  },
++  {
++    set_name: 'Numbers & Quantities',
++    description: 'Numerical expressions and measurements',
++    background_color: '#B0C4DE',
++    icon: '🔢',
++    width_size: 'small',
++    height_custom: 140,
++    theme_tag: 'Numbers',
++  },
++];
++
++async function seedFlashcardsForAllUsers() {
++  try {
++    console.log('🎴 SEEDING FLASHCARDS FOR ALL USERS...\n');
++
++    // 1. Get all verified users
++    const users = await prisma.users.findMany({
++      where: {
++        isVerified: true,
++      },
++    });
++
++    console.log(`📋 Found ${users.length} verified users\n`);
++
++    // 2. Get all vocabs once
++    const allVocabs = await prisma.vocab.findMany({
++      include: {
++        theme: true,
++        lesson: true,
++      },
++    });
++
++    console.log(`📚 Found ${allVocabs.length} vocabularies in database\n`);
++
++    // 3. Seed for each user
++    for (const user of users) {
++      console.log(`\n👤 Processing: ${user.email} (ID: ${user.id})`);
++
++      // Check if user already has sets
++      const existingSets = await prisma.userFlashcardSets.count({
++        where: { user_id: user.id },
++      });
++
++      if (existingSets > 0) {
++        console.log(`   ⏭️  User already has ${existingSets} sets, skipping...`);
++        continue;
++      }
++
++      // Create 20 flashcard sets
++      let totalCards = 0;
++
++      for (let i = 0; i < FLASHCARD_SETS.length; i++) {
++        const setConfig = FLASHCARD_SETS[i];
++
++        // Create flashcard set
++        const flashcardSet = await prisma.userFlashcardSets.create({
++          data: {
++            user_id: user.id,
++            set_name: setConfig.set_name,
++            description: setConfig.description,
++            background_color: setConfig.background_color,
++            icon: setConfig.icon,
++            width_size: setConfig.width_size,
++            height_custom: setConfig.height_custom,
++            theme_tag: setConfig.theme_tag,
++          },
++        });
++
++        // Find matching vocabs
++        let matchingVocabs = allVocabs.filter((vocab) =>
++          vocab.theme?.name?.toLowerCase().includes(setConfig.theme_tag.toLowerCase())
++        );
++
++        if (matchingVocabs.length === 0) {
++          matchingVocabs = allVocabs;
++        }
++
++        // Select random cards
++        const cardCount = [12, 20, 20, 10, 20, 24, 10, 15, 18, 22, 14, 16, 12, 19, 17, 21, 13, 11, 23, 8][i];
++        const shuffled = matchingVocabs.sort(() => 0.5 - Math.random());
++        const selectedVocabs = shuffled.slice(0, Math.min(cardCount, matchingVocabs.length));
++
++        // Create flashcard cards
++        for (const vocab of selectedVocabs) {
++          await prisma.userFlashcardCards.create({
++            data: {
++              set_id: flashcardSet.id,
++              vocab_id: vocab.id,
++              status: 'new',
++            },
++          });
++        }
++
++        totalCards += selectedVocabs.length;
++      }
++
++      console.log(`   ✅ Created 20 sets with ${totalCards} cards for ${user.email}`);
++    }
++
++    console.log('\n\n🎉 SEEDING COMPLETED!\n');
++
++    // Display summary
++    const summary = await prisma.userFlashcardSets.groupBy({
++      by: ['user_id'],
++      _count: { id: true },
++    });
++
++    console.log('📊 SUMMARY:');
++    for (const item of summary) {
++      const user = await prisma.users.findUnique({
++        where: { id: item.user_id },
++        select: { email: true },
++      });
++      console.log(`   ${user?.email}: ${item._count.id} flashcard sets`);
++    }
++
++    const totalSets = await prisma.userFlashcardSets.count();
++    const totalCards = await prisma.userFlashcardCards.count();
++    console.log(`\n   Total: ${totalSets} sets, ${totalCards} cards`);
++  } catch (error) {
++    console.error('❌ ERROR SEEDING FLASHCARDS:', error);
++    throw error;
++  } finally {
++    await prisma.$disconnect();
++  }
++}
++
++// Run seed
++seedFlashcardsForAllUsers().catch((error) => {
++  console.error('SEED FAILED:', error);
++  process.exit(1);
++});
+diff --git a/backend/src/app.ts b/backend/src/app.ts
+index 7cfaac5..9cd0652 100644
+--- a/backend/src/app.ts
++++ b/backend/src/app.ts
+@@ -16,6 +16,7 @@ import VocabRoute from './routes/VocabRoute';
+ import WritingRoute from './routes/WritingRoute';
+ import CloudinaryRoute from './routes/CloudinaryRoute';
+ import FlashcardRoute from './routes/FlashcardRoute';
++import QuizRoute from './routes/QuizRoute';
+ 
+ dotenv.config();
+ 
+@@ -78,8 +79,9 @@ app.use('/api/vocab', VocabRoute);
+ app.use('/api/writing', WritingRoute);
+ app.use('/api/cloudinary', CloudinaryRoute);
+ app.use('/api/flashcards', FlashcardRoute);
++app.use('/api/quiz', QuizRoute);
+ 
+-// 1. GLOBAL ERROR HANDLER - BẮT BUỘC PHẢI Ở ĐÂY (TRƯỚC 404)
++// 1. GLOBAL ERROR HANDLER- BẮT BUỘC PHẢI Ở ĐÂY (TRƯỚC 404)
+ // Khi một lỗi được next() (ví dụ: lỗi 401 từ protect), nó sẽ nhảy vào đây
+ app.use(globalErrorHandler);
+ 
+diff --git a/backend/src/controllers/QuizController.ts b/backend/src/controllers/QuizController.ts
+new file mode 100644
+index 0000000..cbdd435
+--- /dev/null
++++ b/backend/src/controllers/QuizController.ts
+@@ -0,0 +1,149 @@
++// backend/src/controllers/QuizController.ts
++import { Request, Response, NextFunction } from 'express';
++import QuizService from '../services/QuizService';
++import AppError from '../utils/AppError';
++import { QuizType } from '@prisma/client';
++
++class QuizController {
++  /**
++   * GET /api/quiz/available
++   * Lấy danh sách quiz có thể làm (lessons và flashcard sets)
++   */
++  async getAvailableQuizzes(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const quizzes = await QuizService.getAvailableQuizzes(parseInt(userId));
++
++      res.status(200).json({
++        success: true,
++        data: quizzes,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * GET /api/quiz/history
++   * Lấy lịch sử quiz của user
++   */
++  async getQuizHistory(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const { limit } = req.query;
++
++      const quizzes = await QuizService.getUserQuizzes(parseInt(userId), {
++        limit: limit ? parseInt(limit as string) : undefined,
++      });
++
++      res.status(200).json({
++        success: true,
++        data: quizzes,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * POST /api/quiz/lesson/:lessonId
++   * Tạo quiz mới cho lesson
++   */
++  async createLessonQuiz(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const lessonId = parseInt(req.params.lessonId);
++      if (isNaN(lessonId)) {
++        throw new AppError('Invalid lesson ID', 400);
++      }
++
++      const { type } = req.body;
++      const quizType = (type as QuizType) || 'mixed';
++
++      const result = await QuizService.createLessonQuiz(parseInt(userId), lessonId, quizType);
++
++      res.status(201).json({
++        success: true,
++        data: result,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * POST /api/quiz/flashcard/:setId
++   * Tạo quiz mới cho flashcard set
++   */
++  async createFlashcardQuiz(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.setId);
++      if (isNaN(setId)) {
++        throw new AppError('Invalid flashcard set ID', 400);
++      }
++
++      const { type } = req.body;
++      const quizType = (type as QuizType) || 'mixed';
++
++      const result = await QuizService.createFlashcardQuiz(parseInt(userId), setId, quizType);
++
++      res.status(201).json({
++        success: true,
++        data: result,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * POST /api/quiz/:quizId/submit
++   * Submit quiz answers
++   */
++  async submitQuiz(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const quizId = parseInt(req.params.quizId);
++      if (isNaN(quizId)) {
++        throw new AppError('Invalid quiz ID', 400);
++      }
++
++      const { answers } = req.body;
++      if (!Array.isArray(answers)) {
++        throw new AppError('Answers must be an array', 400);
++      }
++
++      const result = await QuizService.submitQuiz(parseInt(userId), quizId, answers);
++
++      res.status(200).json({
++        success: true,
++        data: result,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++}
++
++export default new QuizController();
+diff --git a/backend/src/routes/QuizRoute.ts b/backend/src/routes/QuizRoute.ts
+new file mode 100644
+index 0000000..7093945
+--- /dev/null
++++ b/backend/src/routes/QuizRoute.ts
+@@ -0,0 +1,26 @@
++// backend/src/routes/QuizRoute.ts
++import { Router } from 'express';
++import QuizController from '../controllers/QuizController';
++import { protect } from '../middlewares/AuthMiddleware';
++
++const router = Router();
++
++// Tất cả routes đều cần authentication
++router.use(protect);
++
++// GET /api/quiz/available - Lấy danh sách quiz có thể làm
++router.get('/available', QuizController.getAvailableQuizzes);
++
++// GET /api/quiz/history - Lấy lịch sử quiz
++router.get('/history', QuizController.getQuizHistory);
++
++// POST /api/quiz/lesson/:lessonId - Tạo quiz cho lesson
++router.post('/lesson/:lessonId', QuizController.createLessonQuiz);
++
++// POST /api/quiz/flashcard/:setId - Tạo quiz cho flashcard set
++router.post('/flashcard/:setId', QuizController.createFlashcardQuiz);
++
++// POST /api/quiz/:quizId/submit - Submit quiz answers
++router.post('/:quizId/submit', QuizController.submitQuiz);
++
++export default router;
+diff --git a/backend/src/services/QuizService.ts b/backend/src/services/QuizService.ts
+new file mode 100644
+index 0000000..8b53bde
+--- /dev/null
++++ b/backend/src/services/QuizService.ts
+@@ -0,0 +1,363 @@
++// backend/src/services/QuizService.ts
++import prisma from '../utils/prisma';
++import AppError from '../utils/AppError';
++import { QuizType, QuizContext } from '@prisma/client';
++
++class QuizService {
++  /**
++   * Lấy danh sách quiz của user (có thể filter theo context, lesson, flashcard set)
++   */
++  async getUserQuizzes(
++    userId: number,
++    options?: {
++      context?: QuizContext;
++      lessonId?: number;
++      flashcardSetId?: number;
++      limit?: number;
++    }
++  ) {
++    const where: any = { user_id: userId };
++
++    if (options?.context) where.context = options.context;
++    if (options?.lessonId) where.lesson_id = options.lessonId;
++    if (options?.flashcardSetId) where.flashcard_set_id = options.flashcardSetId;
++
++    const quizzes = await prisma.quizzes.findMany({
++      where,
++      include: {
++        lesson: {
++          include: {
++            theme: true,
++          },
++        },
++        flashcard_set: true,
++      },
++      orderBy: {
++        completed_at: 'desc',
++      },
++      take: options?.limit,
++    });
++
++    return quizzes;
++  }
++
++  /**
++   * Lấy available final quizzes (chưa complete hoặc có thể redo)
++   * - Theo lesson (vocab_end)
++   * - Theo flashcard set (flashcard_set)
++   */
++  async getAvailableQuizzes(userId: number) {
++    // Lấy tất cả lessons có vocab
++    const lessonsWithVocab = await prisma.lesson.findMany({
++      where: {
++        vocabs: {
++          some: {},
++        },
++      },
++      include: {
++        theme: true,
++        _count: {
++          select: { vocabs: true },
++        },
++      },
++    });
++
++    // Lấy tất cả flashcard sets của user
++    const flashcardSets = await prisma.userFlashcardSets.findMany({
++      where: {
++        user_id: userId,
++      },
++      include: {
++        _count: {
++          select: { user_flashcard_cards: true },
++        },
++      },
++    });
++
++    // Lấy quiz history
++    const completedQuizzes = await prisma.quizzes.findMany({
++      where: {
++        user_id: userId,
++        is_passed: true,
++      },
++      select: {
++        lesson_id: true,
++        flashcard_set_id: true,
++        context: true,
++        score: true,
++        completed_at: true,
++      },
++      orderBy: {
++        completed_at: 'desc',
++      },
++    });
++
++    // Map quiz data
++    const lessonQuizzes = lessonsWithVocab.map((lesson) => {
++      const lastQuiz = completedQuizzes.find(
++        (q) => q.lesson_id === lesson.id && q.context === 'vocab_end'
++      );
++
++      return {
++        type: 'lesson' as const,
++        id: lesson.id,
++        name: lesson.name,
++        theme: lesson.theme.name,
++        level: lesson.level,
++        vocabCount: lesson._count.vocabs,
++        lastScore: lastQuiz?.score,
++        lastCompletedAt: lastQuiz?.completed_at,
++        isPassed: !!lastQuiz,
++      };
++    });
++
++    const flashcardQuizzes = flashcardSets.map((set) => {
++      const lastQuiz = completedQuizzes.find(
++        (q) => q.flashcard_set_id === set.id && q.context === 'flashcard_set'
++      );
++
++      return {
++        type: 'flashcard' as const,
++        id: set.id,
++        name: set.set_name,
++        theme: set.theme_tag,
++        cardCount: set._count.user_flashcard_cards,
++        backgroundColor: set.background_color,
++        icon: set.icon,
++        lastScore: lastQuiz?.score,
++        lastCompletedAt: lastQuiz?.completed_at,
++        isPassed: !!lastQuiz,
++      };
++    });
++
++    return {
++      lessonQuizzes,
++      flashcardQuizzes,
++    };
++  }
++
++  /**
++   * Tạo quiz mới cho lesson
++   */
++  async createLessonQuiz(userId: number, lessonId: number, quizType: QuizType = 'mixed') {
++    // Kiểm tra lesson có tồn tại
++    const lesson = await prisma.lesson.findUnique({
++      where: { id: lessonId },
++      include: {
++        theme: true,
++        vocabs: true,
++      },
++    });
++
++    if (!lesson) {
++      throw new AppError('Lesson not found', 404);
++    }
++
++    if (lesson.vocabs.length === 0) {
++      throw new AppError('Lesson has no vocabulary', 400);
++    }
++
++    // Generate questions từ vocab
++    const questions = this.generateQuestions(lesson.vocabs, quizType);
++
++    // Tạo quiz record (chưa có answers)
++    const quiz = await prisma.quizzes.create({
++      data: {
++        user_id: userId,
++        lesson_id: lessonId,
++        type: quizType,
++        context: 'vocab_end',
++        theme_tag: lesson.theme.name,
++        questions_json: questions,
++        answers_json: [],
++        score: 0,
++        is_passed: false,
++      },
++    });
++
++    return {
++      quiz,
++      questions,
++    };
++  }
++
++  /**
++   * Tạo quiz mới cho flashcard set
++   */
++  async createFlashcardQuiz(userId: number, flashcardSetId: number, quizType: QuizType = 'mixed') {
++    const flashcardSet = await prisma.userFlashcardSets.findFirst({
++      where: {
++        id: flashcardSetId,
++        user_id: userId,
++      },
++      include: {
++        user_flashcard_cards: {
++          include: {
++            vocab: true,
++          },
++        },
++      },
++    });
++
++    if (!flashcardSet) {
++      throw new AppError('Flashcard set not found', 404);
++    }
++
++    if (flashcardSet.user_flashcard_cards.length === 0) {
++      throw new AppError('Flashcard set has no cards', 400);
++    }
++
++    const vocabs = flashcardSet.user_flashcard_cards.map((card) => card.vocab);
++    const questions = this.generateQuestions(vocabs, quizType);
++
++    const quiz = await prisma.quizzes.create({
++      data: {
++        user_id: userId,
++        flashcard_set_id: flashcardSetId,
++        type: quizType,
++        context: 'flashcard_set',
++        theme_tag: flashcardSet.theme_tag,
++        questions_json: questions,
++        answers_json: [],
++        score: 0,
++        is_passed: false,
++      },
++    });
++
++    return {
++      quiz,
++      questions,
++    };
++  }
++
++  /**
++   * Submit quiz answers và tính điểm
++   */
++  async submitQuiz(userId: number, quizId: number, answers: any[]) {
++    const quiz = await prisma.quizzes.findFirst({
++      where: {
++        id: quizId,
++        user_id: userId,
++      },
++    });
++
++    if (!quiz) {
++      throw new AppError('Quiz not found', 404);
++    }
++
++    const questions = quiz.questions_json as any[];
++    let correctCount = 0;
++
++    const gradedAnswers = answers.map((answer, index) => {
++      const question = questions[index];
++      const isCorrect = this.checkAnswer(question, answer);
++      if (isCorrect) correctCount++;
++
++      return {
++        ...answer,
++        isCorrect,
++        correctAnswer: question.correctAnswer,
++      };
++    });
++
++    const score = (correctCount / questions.length) * 100;
++    const isPassed = score >= 70;
++
++    const updatedQuiz = await prisma.quizzes.update({
++      where: { id: quizId },
++      data: {
++        answers_json: gradedAnswers,
++        score,
++        is_passed: isPassed,
++        completed_at: new Date(),
++      },
++    });
++
++    // Lưu wrong words nếu có
++    if (!isPassed) {
++      const wrongAnswers = gradedAnswers.filter((a) => !a.isCorrect);
++      for (const wrongAnswer of wrongAnswers) {
++        const question = questions.find((q) => q.id === wrongAnswer.questionId);
++        if (question?.vocabId) {
++          await prisma.quizWrongWords.upsert({
++            where: {
++              user_id_quiz_id_vocab_id: {
++                user_id: userId,
++                quiz_id: quizId,
++                vocab_id: question.vocabId,
++              },
++            },
++            create: {
++              user_id: userId,
++              quiz_id: quizId,
++              vocab_id: question.vocabId,
++            },
++            update: {},
++          });
++        }
++      }
++    }
++
++    return {
++      quiz: updatedQuiz,
++      score,
++      isPassed,
++      correctCount,
++      totalQuestions: questions.length,
++    };
++  }
++
++  /**
++   * Generate questions từ vocab list
++   */
++  private generateQuestions(vocabs: any[], quizType: QuizType, count: number = 10) {
++    const shuffled = [...vocabs].sort(() => Math.random() - 0.5);
++    const selected = shuffled.slice(0, Math.min(count, vocabs.length));
++
++    const questions = selected.map((vocab, index) => ({
++      id: `q${index + 1}`,
++      type: quizType === 'mixed' ? this.getRandomQuizType() : quizType,
++      vocabId: vocab.id,
++      word: vocab.word,
++      meaning: vocab.meaning_vn || vocab.meaning_en,
++      example: vocab.example,
++      correctAnswer: this.generateCorrectAnswer(vocab, quizType),
++      options: this.generateOptions(vocab, vocabs, quizType),
++    }));
++
++    return questions;
++  }
++
++  private getRandomQuizType(): QuizType {
++    const types: QuizType[] = ['multiple_choice', 'fill_blank'];
++    return types[Math.floor(Math.random() * types.length)];
++  }
++
++  private generateCorrectAnswer(vocab: any, quizType: QuizType): string {
++    if (quizType === 'fill_blank') return vocab.word;
++    return vocab.meaning_vn || vocab.meaning_en;
++  }
++
++  private generateOptions(vocab: any, allVocabs: any[], quizType: QuizType): string[] {
++    if (quizType === 'fill_blank') return [];
++
++    const correctAnswer = vocab.meaning_vn || vocab.meaning_en;
++    const otherVocabs = allVocabs.filter((v) => v.id !== vocab.id);
++    const shuffled = otherVocabs.sort(() => Math.random() - 0.5);
++    const wrongOptions = shuffled
++      .slice(0, 3)
++      .map((v) => v.meaning_vn || v.meaning_en);
++
++    const options = [correctAnswer, ...wrongOptions];
++    return options.sort(() => Math.random() - 0.5);
++  }
++
++  private checkAnswer(question: any, answer: any): boolean {
++    if (question.type === 'fill_blank') {
++      return answer.answer?.toLowerCase().trim() === question.correctAnswer?.toLowerCase().trim();
++    }
++    return answer.answer === question.correctAnswer;
++  }
++}
++
++export default new QuizService();
+diff --git a/frontend/next.config.ts b/frontend/next.config.ts
+index 74c3d44..d96c40f 100644
+--- a/frontend/next.config.ts
++++ b/frontend/next.config.ts
+@@ -28,6 +28,10 @@ const nextConfig: NextConfig = {
+       // Nếu bạn dùng tên miền tùy chỉnh, hãy thêm vào đây
+       // ...
+     ],
++    unoptimized: false, // Keep optimization but allow fallback
++    dangerouslyAllowSVG: true,
++    contentDispositionType: 'attachment',
++    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
+   },
+ 
+   // Thêm cấu hình rewrites
+diff --git a/frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx b/frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx
+index 07e0d66..3c5492f 100644
+--- a/frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx
++++ b/frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx
+@@ -1,368 +1,86 @@
+-// frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx
+-// Final Quiz Screen - Quiz sau khi học xong flashcard set
+-
+ 'use client';
+ 
+ import { useEffect, useState } from 'react';
+-import { useRouter, useParams } from 'next/navigation';
+-import { useAuth } from '@/context/AuthContext';
+-import { getQuizForSet, fetchFlashcardSetById } from '@/lib/api/flashcard';
+-import { FlashcardSetWithCards, QuizForSet } from '@/lib/types/flashcard';
+-import { Button } from '@/components/ui/button';
++import { useParams, useRouter } from 'next/navigation';
++import QuizInterface, { Question, Answer } from '@/components/quiz/QuizInterface';
++import QuizResult from '@/components/quiz/QuizResult';
++import axiosInstance from '@/lib/api/axiosInstance';
+ import { toast } from '@/components/ui/use-toast';
+-import { ArrowLeft, CheckCircle, XCircle, Trophy } from 'lucide-react';
+-
+-interface QuizQuestion {
+-  id: number;
+-  word: string;
+-  correctAnswer: string;
+-  options: string[];
+-  userAnswer?: string;
+-  isCorrect?: boolean;
+-}
+ 
+ export default function FlashcardQuizPage() {
+-  const { user, loading: authLoading } = useAuth();
+-  const router = useRouter();
+   const params = useParams();
+-  const setId = parseInt(params.id as string);
++  const router = useRouter();
++  const quizId = parseInt(params.id as string);
+ 
+-  const [flashcardSet, setFlashcardSet] = useState<FlashcardSetWithCards | null>(null);
+-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+-  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
+-  const [showResult, setShowResult] = useState(false);
+-  const [quizCompleted, setQuizCompleted] = useState(false);
+-  const [score, setScore] = useState(0);
+   const [loading, setLoading] = useState(true);
++  const [questions, setQuestions] = useState<Question[]>([]);
++  const [showResult, setShowResult] = useState(false);
++  const [result, setResult] = useState<any>(null);
++  const [themeName, setThemeName] = useState('');
+ 
+-  // Redirect if not authenticated
+-  useEffect(() => {
+-    if (authLoading) return;
+-    if (!user) {
+-      router.replace('/signin');
+-    }
+-  }, [user, authLoading, router]);
+-
+-  // Fetch flashcard set and generate quiz
+   useEffect(() => {
+-    if (!user || isNaN(setId)) return;
+-
+-    const loadQuiz = async () => {
+-      try {
+-        setLoading(true);
+-        const setData = await fetchFlashcardSetById(setId);
+-        setFlashcardSet(setData);
+-
+-        // Generate quiz questions from flashcard set
+-        const generatedQuestions = generateQuestions(setData);
+-        setQuestions(generatedQuestions);
+-      } catch (error: any) {
+-        console.error('Error loading quiz:', error);
+-        toast({
+-          title: 'Lỗi',
+-          description: error.response?.data?.message || 'Không thể tải quiz',
+-          variant: 'destructive',
+-        });
+-        router.push('/flashcard');
+-      } finally {
+-        setLoading(false);
+-      }
+-    };
+-
+-    loadQuiz();
+-  }, [user, setId, router]);
+-
+-  // Generate quiz questions from cards
+-  const generateQuestions = (set: FlashcardSetWithCards): QuizQuestion[] => {
+-    const cards = set.cards || set.user_flashcard_cards || [];
+-
+-    return cards.slice(0, 20).map((card, index) => {
+-      const vocab = card.vocab;
+-      if (!vocab) {
+-        return {
+-          id: index,
+-          word: 'Unknown',
+-          correctAnswer: 'Unknown',
+-          options: ['Unknown'],
+-        };
+-      }
+-
+-      // Generate wrong answers (random other cards)
+-      const wrongAnswers = cards
+-        .filter((c) => c.vocab_id !== card.vocab_id)
+-        .slice(0, 3)
+-        .map((c) => c.vocab?.meaning_vn || 'Unknown');
+-
+-      // Shuffle options
+-      const options = [vocab.meaning_vn || vocab.meaning_en, ...wrongAnswers]
+-        .filter((opt) => opt && opt !== 'Unknown')
+-        .sort(() => Math.random() - 0.5)
+-        .slice(0, 4);
+-
+-      return {
+-        id: index,
+-        word: vocab.word,
+-        correctAnswer: vocab.meaning_vn || vocab.meaning_en,
+-        options,
+-      };
+-    });
+-  };
+-
+-  const handleAnswerSelect = (answer: string) => {
+-    if (showResult) return;
+-    setSelectedAnswer(answer);
+-  };
+-
+-  const handleCheckAnswer = () => {
+-    if (!selectedAnswer) {
++    const storedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
++    
++    if (storedQuiz) {
++      const data = JSON.parse(storedQuiz);
++      setQuestions(data.questions);
++      setThemeName(data.theme_tag || 'Flashcard Quiz');
++      setLoading(false);
++    } else {
+       toast({
+-        title: 'Chưa chọn đáp án',
+-        description: 'Vui lòng chọn một đáp án',
++        title: 'Lỗi',
++        description: 'Không tìm thấy quiz. Vui lòng tạo quiz mới.',
+         variant: 'destructive',
+       });
+-      return;
++      setTimeout(() => router.push('/quiz'), 2000);
+     }
++  }, [quizId, router]);
+ 
+-    const currentQuestion = questions[currentQuestionIndex];
+-    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
+-
+-    // Update question with user answer
+-    const updatedQuestions = [...questions];
+-    updatedQuestions[currentQuestionIndex] = {
+-      ...currentQuestion,
+-      userAnswer: selectedAnswer,
+-      isCorrect,
+-    };
+-    setQuestions(updatedQuestions);
++  const handleSubmit = async (answers: Answer[]) => {
++    try {
++      setLoading(true);
++      const response = await axiosInstance.post(`/api/quiz/${quizId}/submit`, { answers });
++      const { score, isPassed, correctCount, totalQuestions } = response.data.data;
+ 
+-    if (isCorrect) {
+-      setScore(score + 1);
+-    }
+-
+-    setShowResult(true);
+-  };
++      setResult({ score, isPassed, correctCount, totalQuestions });
++      setShowResult(true);
+ 
+-  const handleNextQuestion = () => {
+-    if (currentQuestionIndex < questions.length - 1) {
+-      setCurrentQuestionIndex(currentQuestionIndex + 1);
+-      setSelectedAnswer('');
+-      setShowResult(false);
+-    } else {
+-      // Quiz completed
+-      setQuizCompleted(true);
+-    }
+-  };
++      sessionStorage.removeItem(`quiz_${quizId}`);
+ 
+-  const handleRetry = () => {
+-    // Reload quiz
+-    if (flashcardSet) {
+-      const generatedQuestions = generateQuestions(flashcardSet);
+-      setQuestions(generatedQuestions);
+-      setCurrentQuestionIndex(0);
+-      setSelectedAnswer('');
+-      setShowResult(false);
+-      setQuizCompleted(false);
+-      setScore(0);
++      toast({
++        title: 'Hoàn thành!',
++        description: `Bạn đạt ${score.toFixed(0)}%`,
++      });
++    } catch (error: any) {
++      toast({
++        title: 'Lỗi',
++        description: 'Không thể nộp bài',
++        variant: 'destructive',
++      });
++    } finally {
++      setLoading(false);
+     }
+   };
+ 
+-  if (authLoading || loading) {
+-    return (
+-      <div className="min-h-screen flex items-center justify-center bg-white">
+-        <div className="text-center">
+-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-edu mx-auto"></div>
+-          <p className="mt-4 text-gray-600">Đang tải quiz...</p>
+-        </div>
+-      </div>
+-    );
+-  }
+-
+-  if (!user || !flashcardSet || questions.length === 0) return null;
+-
+-  const currentQuestion = questions[currentQuestionIndex];
+-  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+-  const accuracy = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
+-
+-  // Quiz Completed Screen
+-  if (quizCompleted) {
+-    const passed = accuracy >= 70;
+-
++  if (showResult && result) {
+     return (
+-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-6">
+-        <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl w-full text-center">
+-          {/* Trophy Icon */}
+-          <div className="mb-6">
+-            {passed ? (
+-              <Trophy className="h-24 w-24 text-yellow-500 mx-auto animate-bounce" />
+-            ) : (
+-              <div className="text-8xl">📚</div>
+-            )}
+-          </div>
+-
+-          {/* Status Badge */}
+-          <div className="mb-4">
+-            {passed ? (
+-              <span className="inline-flex items-center gap-2 px-6 py-3 bg-green-100 text-green-800 rounded-full font-bold text-lg">
+-                <CheckCircle className="h-6 w-6" />
+-                {accuracy >= 90 ? 'Xuất sắc!' : 'Đạt yêu cầu!'}
+-              </span>
+-            ) : (
+-              <span className="inline-flex items-center gap-2 px-6 py-3 bg-orange-100 text-orange-800 rounded-full font-bold text-lg">
+-                <XCircle className="h-6 w-6" />
+-                Cần cố gắng thêm
+-              </span>
+-            )}
+-          </div>
+-
+-          {/* Score */}
+-          <div className="mb-8">
+-            <div className="text-7xl font-bold text-gray-800 mb-2">{accuracy}%</div>
+-            <p className="text-xl text-gray-600">
+-              {score}/{questions.length} câu đúng
+-            </p>
+-          </div>
+-
+-          {/* Message */}
+-          <p className="text-lg text-gray-700 mb-8">
+-            {passed
+-              ? 'Chúc mừng! Bạn đã nắm vững từ vựng trong bộ thẻ này.'
+-              : 'Hãy học lại và thử lại lần nữa nhé!'}
+-          </p>
+-
+-          {/* Action Buttons */}
+-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+-            <Button
+-              onClick={handleRetry}
+-              className="px-8 py-6 text-lg bg-[#4CAF50] hover:bg-[#45A049]"
+-            >
+-              Làm lại Quiz
+-            </Button>
+-            <Button
+-              onClick={() => router.push(`/flashcard/study/${setId}`)}
+-              variant="outline"
+-              className="px-8 py-6 text-lg"
+-            >
+-              Học lại
+-            </Button>
+-            <Button
+-              onClick={() => router.push('/flashcard')}
+-              variant="outline"
+-              className="px-8 py-6 text-lg"
+-            >
+-              Về trang chủ
+-            </Button>
+-          </div>
+-        </div>
+-      </div>
++      <QuizResult
++        score={result.score}
++        totalQuestions={result.totalQuestions}
++        correctCount={result.correctCount}
++        isPassed={result.isPassed}
++        onRetry={() => router.push('/quiz')}
++        onBackToHub={() => router.push('/quiz')}
++      />
+     );
+   }
+ 
+-  // Quiz Question Screen
+   return (
+-    <div className="min-h-screen bg-white flex flex-col">
+-      {/* Header */}
+-      <div className="border-b px-6 py-4">
+-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+-          <button
+-            onClick={() => router.push('/flashcard')}
+-            className="p-2 hover:bg-gray-100 rounded-full"
+-          >
+-            <ArrowLeft className="h-6 w-6" />
+-          </button>
+-
+-          <div className="flex-1 max-w-md mx-8">
+-            <div className="flex items-center gap-3">
+-              <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
+-                <div
+-                  className="h-full bg-[#4CAF50] transition-all"
+-                  style={{ width: `${progress}%` }}
+-                />
+-              </div>
+-              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
+-                Câu {currentQuestionIndex + 1}/{questions.length}
+-              </span>
+-            </div>
+-          </div>
+-
+-          <div className="text-sm font-medium text-gray-600">
+-            Score: {score}/{currentQuestionIndex + (showResult ? 1 : 0)}
+-          </div>
+-        </div>
+-      </div>
+-
+-      {/* Quiz Title */}
+-      <div className="text-center py-6">
+-        <h2 className="text-2xl font-bold text-gray-800">
+-          Final Quiz - {flashcardSet.set_name}
+-        </h2>
+-      </div>
+-
+-      {/* Question Card */}
+-      <div className="flex-1 flex items-center justify-center px-6 py-8">
+-        <div className="w-full max-w-2xl">
+-          <div className="bg-white rounded-2xl shadow-xl p-10">
+-            {/* Question */}
+-            <div className="mb-8">
+-              <p className="text-sm text-gray-500 mb-3">
+-                What does <strong>"{currentQuestion.word}"</strong> mean?
+-              </p>
+-              <h3 className="text-3xl font-bold text-black">{currentQuestion.word}</h3>
+-            </div>
+-
+-            {/* Options */}
+-            <div className="space-y-3 mb-8">
+-              {currentQuestion.options.map((option, index) => {
+-                const isSelected = selectedAnswer === option;
+-                const isCorrect = option === currentQuestion.correctAnswer;
+-                const showCorrect = showResult && isCorrect;
+-                const showWrong = showResult && isSelected && !isCorrect;
+-
+-                return (
+-                  <button
+-                    key={index}
+-                    onClick={() => handleAnswerSelect(option)}
+-                    disabled={showResult}
+-                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
+-                      showCorrect
+-                        ? 'bg-green-50 border-green-500'
+-                        : showWrong
+-                        ? 'bg-red-50 border-red-500'
+-                        : isSelected
+-                        ? 'bg-blue-50 border-blue-500'
+-                        : 'border-gray-200 hover:border-gray-400'
+-                    }`}
+-                  >
+-                    <div className="flex items-center justify-between">
+-                      <span className="text-lg">{option}</span>
+-                      {showCorrect && <CheckCircle className="h-6 w-6 text-green-600" />}
+-                      {showWrong && <XCircle className="h-6 w-6 text-red-600" />}
+-                    </div>
+-                  </button>
+-                );
+-              })}
+-            </div>
+-
+-            {/* Action Button */}
+-            {!showResult ? (
+-              <Button
+-                onClick={handleCheckAnswer}
+-                disabled={!selectedAnswer}
+-                className="w-full py-6 text-lg bg-[#4CAF50] hover:bg-[#45A049]"
+-              >
+-                Kiểm tra
+-              </Button>
+-            ) : (
+-              <Button
+-                onClick={handleNextQuestion}
+-                className="w-full py-6 text-lg bg-[#4CAF50] hover:bg-[#45A049]"
+-              >
+-                {currentQuestionIndex === questions.length - 1 ? 'Xem kết quả' : 'Tiếp tục'}
+-              </Button>
+-            )}
+-          </div>
+-        </div>
+-      </div>
+-    </div>
++    <QuizInterface
++      questions={questions}
++      onSubmit={handleSubmit}
++      themeName={themeName}
++      loading={loading}
++    />
+   );
+-}
++}
+\ No newline at end of file
+diff --git a/frontend/src/app/(full_screen)/vocabulary/quiz/[id]/page.tsx b/frontend/src/app/(full_screen)/vocabulary/quiz/[id]/page.tsx
+new file mode 100644
+index 0000000..bc6b9ee
+--- /dev/null
++++ b/frontend/src/app/(full_screen)/vocabulary/quiz/[id]/page.tsx
+@@ -0,0 +1,86 @@
++'use client';
++
++import { useEffect, useState } from 'react';
++import { useParams, useRouter } from 'next/navigation';
++import QuizInterface, { Question, Answer } from '@/components/quiz/QuizInterface';
++import QuizResult from '@/components/quiz/QuizResult';
++import axiosInstance from '@/lib/api/axiosInstance';
++import { toast } from '@/components/ui/use-toast';
++
++export default function VocabularyQuizPage() {
++  const params = useParams();
++  const router = useRouter();
++  const quizId = parseInt(params.id as string);
++
++  const [loading, setLoading] = useState(true);
++  const [questions, setQuestions] = useState<Question[]>([]);
++  const [showResult, setShowResult] = useState(false);
++  const [result, setResult] = useState<any>(null);
++  const [themeName, setThemeName] = useState('');
++
++  useEffect(() => {
++    const storedQuiz = sessionStorage.getItem(`quiz_${quizId}`);
++    
++    if (storedQuiz) {
++      const data = JSON.parse(storedQuiz);
++      setQuestions(data.questions);
++      setThemeName(data.theme_tag || 'Vocabulary Quiz');
++      setLoading(false);
++    } else {
++      toast({
++        title: 'Lỗi',
++        description: 'Không tìm thấy quiz. Vui lòng tạo quiz mới.',
++        variant: 'destructive',
++      });
++      setTimeout(() => router.push('/quiz'), 2000);
++    }
++  }, [quizId, router]);
++
++  const handleSubmit = async (answers: Answer[]) => {
++    try {
++      setLoading(true);
++      const response = await axiosInstance.post(`/api/quiz/${quizId}/submit`, { answers });
++      const { score, isPassed, correctCount, totalQuestions } = response.data.data;
++
++      setResult({ score, isPassed, correctCount, totalQuestions });
++      setShowResult(true);
++
++      sessionStorage.removeItem(`quiz_${quizId}`);
++
++      toast({
++        title: 'Hoàn thành!',
++        description: `Bạn đạt ${score.toFixed(0)}%`,
++      });
++    } catch (error: any) {
++      toast({
++        title: 'Lỗi',
++        description: 'Không thể nộp bài',
++        variant: 'destructive',
++      });
++    } finally {
++      setLoading(false);
++    }
++  };
++
++  if (showResult && result) {
++    return (
++      <QuizResult
++        score={result.score}
++        totalQuestions={result.totalQuestions}
++        correctCount={result.correctCount}
++        isPassed={result.isPassed}
++        onRetry={() => router.push('/quiz')}
++        onBackToHub={() => router.push('/quiz')}
++      />
++    );
++  }
++
++  return (
++    <QuizInterface
++      questions={questions}
++      onSubmit={handleSubmit}
++      themeName={themeName}
++      loading={loading}
++    />
++  );
++}
+\ No newline at end of file
+diff --git a/frontend/src/app/(protected)/quiz/page.tsx b/frontend/src/app/(protected)/quiz/page.tsx
+new file mode 100644
+index 0000000..68d4466
+--- /dev/null
++++ b/frontend/src/app/(protected)/quiz/page.tsx
+@@ -0,0 +1,301 @@
++// frontend/src/app/(protected)/quiz/page.tsx
++'use client';
++
++import { useEffect, useState } from 'react';
++import { useRouter } from 'next/navigation';
++import { useAuth } from '@/context/AuthContext';
++import { Button } from '@/components/ui/button';
++import { Input } from '@/components/ui/input';
++import { toast } from '@/components/ui/use-toast';
++import { Search, PlayCircle, CheckCircle } from 'lucide-react';
++import axiosInstance from '@/lib/api/axiosInstance';
++
++interface LessonQuiz {
++  type: 'lesson';
++  id: number;
++  name: string;
++  theme: string;
++  level: string;
++  vocabCount: number;
++  lastScore?: number;
++  lastCompletedAt?: Date;
++  isPassed: boolean;
++}
++
++interface FlashcardQuiz {
++  type: 'flashcard';
++  id: number;
++  name: string;
++  theme?: string;
++  cardCount: number;
++  backgroundColor: string;
++  icon?: string;
++  lastScore?: number;
++  lastCompletedAt?: Date;
++  isPassed: boolean;
++}
++
++type QuizItem = LessonQuiz | FlashcardQuiz;
++
++export default function QuizPage() {
++  const { user, loading: authLoading } = useAuth();
++  const router = useRouter();
++
++  const [lessonQuizzes, setLessonQuizzes] = useState<LessonQuiz[]>([]);
++  const [flashcardQuizzes, setFlashcardQuizzes] = useState<FlashcardQuiz[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [searchQuery, setSearchQuery] = useState('');
++  const [activeTab, setActiveTab] = useState<'all' | 'lessons' | 'flashcards'>('all');
++
++  useEffect(() => {
++    if (authLoading) return;
++    if (!user) {
++      router.replace('/signin');
++    }
++  }, [user, authLoading, router]);
++
++  useEffect(() => {
++    if (!user) return;
++
++    const loadQuizzes = async () => {
++      try {
++        setLoading(true);
++        const response = await axiosInstance.get('/api/quiz/available');
++        const { lessonQuizzes, flashcardQuizzes } = response.data.data;
++
++        setLessonQuizzes(lessonQuizzes);
++        setFlashcardQuizzes(flashcardQuizzes);
++      } catch (error: any) {
++        console.error('Error loading quizzes:', error);
++        toast({
++          title: 'Lỗi',
++          description: error.response?.data?.message || 'Không thể tải danh sách quiz',
++          variant: 'destructive',
++        });
++      } finally {
++        setLoading(false);
++      }
++    };
++
++    loadQuizzes();
++  }, [user]);
++
++  const handleStartQuiz = async (quiz: QuizItem) => {
++    try {
++      let response;
++      if (quiz.type === 'lesson') {
++        response = await axiosInstance.post(`/api/quiz/lesson/${quiz.id}`, {
++          type: 'mixed',
++        });
++      } else {
++        response = await axiosInstance.post(`/api/quiz/flashcard/${quiz.id}`, {
++          type: 'mixed',
++        });
++      }
++
++      const { quiz: createdQuiz, questions } = response.data.data;
++      
++      // Store quiz data in sessionStorage for quiz page to use
++      sessionStorage.setItem(
++        `quiz_${createdQuiz.id}`,
++        JSON.stringify({
++          questions,
++          theme_tag: createdQuiz.theme_tag || quiz.name,
++        })
++      );
++      
++      // Navigate to quiz page
++      if (quiz.type === 'lesson') {
++        router.push(`/vocabulary/quiz/${createdQuiz.id}`);
++      } else {
++        router.push(`/flashcard/quiz/${createdQuiz.id}`);
++      }
++    } catch (error: any) {
++      toast({
++        title: 'Lỗi',
++        description: error.response?.data?.message || 'Không thể tạo quiz',
++        variant: 'destructive',
++      });
++    }
++  };
++
++  const filteredQuizzes = () => {
++    let quizzes: QuizItem[] = [];
++
++    if (activeTab === 'all' || activeTab === 'lessons') {
++      quizzes = [...quizzes, ...lessonQuizzes];
++    }
++    if (activeTab === 'all' || activeTab === 'flashcards') {
++      quizzes = [...quizzes, ...flashcardQuizzes];
++    }
++
++    if (!searchQuery.trim()) return quizzes;
++
++    return quizzes.filter((quiz) =>
++      quiz.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
++      quiz.theme?.toLowerCase().includes(searchQuery.toLowerCase())
++    );
++  };
++
++  if (authLoading || loading) {
++    return (
++      <div className="min-h-screen flex items-center justify-center bg-[#F5F3E8]">
++        <div className="text-center">
++          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-edu mx-auto"></div>
++          <p className="mt-4 text-gray-600">Đang tải...</p>
++        </div>
++      </div>
++    );
++  }
++
++  if (!user) return null;
++
++  const displayedQuizzes = filteredQuizzes();
++
++  return (
++    <div className="min-h-screen bg-[#F5F3E8] pt-[72px]">
++      <div className="bg-white border-b">
++        <div className="max-w-7xl mx-auto px-6 py-8">
++          <h1 className="text-4xl md:text-5xl font-bold text-black mb-3">
++            Quiz & Kiểm Tra
++          </h1>
++          <p className="text-lg text-gray-600">
++            Làm bài kiểm tra để đánh giá trình độ và củng cố kiến thức
++          </p>
++        </div>
++      </div>
++
++      <div className="max-w-7xl mx-auto px-6 py-6">
++        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
++          <div className="flex gap-2">
++            <Button
++              variant={activeTab === 'all' ? 'default' : 'outline'}
++              onClick={() => setActiveTab('all')}
++              className={activeTab === 'all' ? 'bg-[#4CAF50]' : ''}
++            >
++              Tất cả ({lessonQuizzes.length + flashcardQuizzes.length})
++            </Button>
++            <Button
++              variant={activeTab === 'lessons' ? 'default' : 'outline'}
++              onClick={() => setActiveTab('lessons')}
++              className={activeTab === 'lessons' ? 'bg-[#4CAF50]' : ''}
++            >
++              Lessons ({lessonQuizzes.length})
++            </Button>
++            <Button
++              variant={activeTab === 'flashcards' ? 'default' : 'outline'}
++              onClick={() => setActiveTab('flashcards')}
++              className={activeTab === 'flashcards' ? 'bg-[#4CAF50]' : ''}
++            >
++              Flashcards ({flashcardQuizzes.length})
++            </Button>
++          </div>
++
++          <div className="relative w-full md:w-80">
++            <Input
++              type="text"
++              placeholder="Tìm kiếm quiz..."
++              value={searchQuery}
++              onChange={(e) => setSearchQuery(e.target.value)}
++              className="pr-10 rounded-full"
++            />
++            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
++          </div>
++        </div>
++      </div>
++
++      <div className="max-w-7xl mx-auto px-6 pb-12">
++        {displayedQuizzes.length === 0 ? (
++          <div className="text-center py-20">
++            <div className="text-6xl mb-4">📝</div>
++            <h3 className="text-2xl font-bold text-gray-700 mb-2">
++              {searchQuery ? 'Không tìm thấy quiz nào' : 'Chưa có quiz nào'}
++            </h3>
++            <p className="text-gray-500">
++              {searchQuery
++                ? 'Thử từ khóa khác'
++                : 'Học từ vựng hoặc tạo flashcard để có quiz'}
++            </p>
++          </div>
++        ) : (
++          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
++            {displayedQuizzes.map((quiz) => (
++              <QuizCard key={`${quiz.type}-${quiz.id}`} quiz={quiz} onStart={handleStartQuiz} />
++            ))}
++          </div>
++        )}
++      </div>
++    </div>
++  );
++}
++
++function QuizCard({ quiz, onStart }: { quiz: QuizItem; onStart: (quiz: QuizItem) => void }) {
++  const formatDate = (date?: Date) => {
++    if (!date) return null;
++    return new Date(date).toLocaleDateString('vi-VN');
++  };
++
++  return (
++    <div
++      className="bg-white rounded-2xl p-6 shadow-md hover:shadow-xl transition-all duration-300 border-2 border-gray-100"
++      style={
++        quiz.type === 'flashcard'
++          ? { backgroundColor: quiz.backgroundColor + '20', borderColor: quiz.backgroundColor }
++          : {}
++      }
++    >
++      <div className="flex items-start justify-between mb-4">
++        <div className="flex items-center gap-3">
++          {quiz.type === 'flashcard' && quiz.icon && (
++            <div className="text-3xl">{quiz.icon}</div>
++          )}
++          <div>
++            <div className="text-xs text-gray-500 uppercase tracking-wide mb-1">
++              {quiz.type === 'lesson' ? '📖 Lesson Quiz' : '🎴 Flashcard Quiz'}
++            </div>
++            <h3 className="text-xl font-bold text-black line-clamp-2">{quiz.name}</h3>
++          </div>
++        </div>
++      </div>
++
++      <div className="space-y-2 mb-4">
++        {quiz.theme && (
++          <div className="flex items-center gap-2 text-sm text-gray-600">
++            <span className="font-medium">Chủ đề:</span>
++            <span>{quiz.theme}</span>
++          </div>
++        )}
++        {quiz.type === 'lesson' && (
++          <div className="flex items-center gap-2 text-sm text-gray-600">
++            <span className="font-medium">Level:</span>
++            <span className="px-2 py-0.5 bg-gray-100 rounded">{quiz.level}</span>
++          </div>
++        )}
++        <div className="flex items-center gap-2 text-sm text-gray-600">
++          <span className="font-medium">Số câu:</span>
++          <span>{quiz.type === 'lesson' ? quiz.vocabCount : quiz.cardCount}</span>
++        </div>
++      </div>
++
++      {quiz.isPassed && quiz.lastScore !== undefined && (
++        <div className="mb-4 p-3 bg-green-50 rounded-lg border border-green-200">
++          <div className="flex items-center gap-2 text-green-700 text-sm">
++            <CheckCircle className="h-4 w-4" />
++            <span className="font-medium">Đã hoàn thành</span>
++          </div>
++          <div className="mt-1 text-xs text-green-600">
++            Điểm: {quiz.lastScore.toFixed(0)}% · {formatDate(quiz.lastCompletedAt)}
++          </div>
++        </div>
++      )}
++
++      <Button
++        onClick={() => onStart(quiz)}
++        className="w-full bg-[#4CAF50] hover:bg-[#45A049] text-white"
++      >
++        <PlayCircle className="mr-2 h-4 w-4" />
++        {quiz.isPassed ? 'Làm lại' : 'Bắt đầu'}
++      </Button>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/quiz/QuizInterface.tsx b/frontend/src/components/quiz/QuizInterface.tsx
+new file mode 100644
+index 0000000..597d3d5
+--- /dev/null
++++ b/frontend/src/components/quiz/QuizInterface.tsx
+@@ -0,0 +1,217 @@
++// frontend/src/components/quiz/QuizInterface.tsx
++'use client';
++
++import { useState } from 'react';
++import { Button } from '@/components/ui/button';
++import { Input } from '@/components/ui/input';
++import { Card } from '@/components/ui/card';
++import { CheckCircle, XCircle, Clock, Volume2 } from 'lucide-react';
++
++export interface Question {
++  id: string;
++  type: 'multiple_choice' | 'fill_blank';
++  vocabId: number;
++  word: string;
++  meaning: string;
++  example?: string;
++  correctAnswer: string;
++  options?: string[];
++}
++
++export interface Answer {
++  questionId: string;
++  answer: string;
++}
++
++interface QuizInterfaceProps {
++  questions: Question[];
++  onSubmit: (answers: Answer[]) => void;
++  themeName?: string;
++  loading?: boolean;
++}
++
++export default function QuizInterface({ questions, onSubmit, themeName, loading }: QuizInterfaceProps) {
++  const [currentIndex, setCurrentIndex] = useState(0);
++  const [answers, setAnswers] = useState<Answer[]>([]);
++  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
++
++  const currentQuestion = questions[currentIndex];
++  const isLastQuestion = currentIndex === questions.length - 1;
++  const progress = ((currentIndex + 1) / questions.length) * 100;
++
++  const handleAnswerSelect = (answer: string) => {
++    setSelectedAnswer(answer);
++  };
++
++  const handleNext = () => {
++    if (!selectedAnswer) return;
++
++    const newAnswers = [...answers];
++    const existingIndex = newAnswers.findIndex((a) => a.questionId === currentQuestion.id);
++
++    if (existingIndex >= 0) {
++      newAnswers[existingIndex].answer = selectedAnswer;
++    } else {
++      newAnswers.push({
++        questionId: currentQuestion.id,
++        answer: selectedAnswer,
++      });
++    }
++
++    setAnswers(newAnswers);
++
++    if (isLastQuestion) {
++      onSubmit(newAnswers);
++    } else {
++      setCurrentIndex(currentIndex + 1);
++      setSelectedAnswer('');
++    }
++  };
++
++  const handlePrevious = () => {
++    if (currentIndex > 0) {
++      setCurrentIndex(currentIndex - 1);
++      const prevAnswer = answers.find((a) => a.questionId === questions[currentIndex - 1].id);
++      setSelectedAnswer(prevAnswer?.answer || '');
++    }
++  };
++
++  const handlePlayAudio = (word: string) => {
++    if ('speechSynthesis' in window) {
++      const utterance = new SpeechSynthesisUtterance(word);
++      utterance.lang = 'en-US';
++      utterance.rate = 0.8;
++      window.speechSynthesis.speak(utterance);
++    }
++  };
++
++  if (loading) {
++    return (
++      <div className="flex items-center justify-center min-h-screen">
++        <div className="text-center">
++          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-edu mx-auto mb-4"></div>
++          <p className="text-gray-600">Đang tải quiz...</p>
++        </div>
++      </div>
++    );
++  }
++
++  if (questions.length === 0) {
++    return (
++      <div className="flex items-center justify-center min-h-screen">
++        <Card className="p-8 text-center max-w-md">
++          <XCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
++          <h3 className="text-xl font-bold mb-2">Không có câu hỏi</h3>
++          <p className="text-gray-600">Quiz này chưa có câu hỏi nào.</p>
++        </Card>
++      </div>
++    );
++  }
++
++  return (
++    <div className="min-h-screen bg-[#F5F3E8] py-8 px-4">
++      <div className="max-w-3xl mx-auto">
++        <div className="mb-6">
++          <div className="flex items-center justify-between mb-2">
++            <h1 className="text-2xl font-bold text-black">
++              {themeName || 'Quiz'}
++            </h1>
++            <div className="flex items-center gap-2 text-gray-600">
++              <Clock className="h-5 w-5" />
++              <span className="text-sm">
++                {currentIndex + 1} / {questions.length}
++              </span>
++            </div>
++          </div>
++          <div className="w-full bg-gray-200 rounded-full h-2">
++            <div
++              className="bg-[#4CAF50] h-2 rounded-full transition-all duration-300"
++              style={{ width: `${progress}%` }}
++            ></div>
++          </div>
++        </div>
++
++        <Card className="p-8 mb-6 bg-white shadow-lg">
++          <div className="mb-6">
++            <p className="text-sm text-gray-500 mb-2">Câu hỏi {currentIndex + 1}</p>
++            <div className="flex items-center gap-3 mb-4">
++              <h2 className="text-3xl font-bold text-black">{currentQuestion.word}</h2>
++              <button
++                onClick={() => handlePlayAudio(currentQuestion.word)}
++                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
++                title="Phát âm"
++              >
++                <Volume2 className="h-5 w-5 text-edu" />
++              </button>
++            </div>
++            {currentQuestion.example && (
++              <p className="text-gray-600 italic">
++                Ví dụ: "{currentQuestion.example}"
++              </p>
++            )}
++          </div>
++
++          {currentQuestion.type === 'multiple_choice' && currentQuestion.options && (
++            <div className="space-y-3">
++              <p className="font-medium text-gray-700 mb-4">Chọn nghĩa đúng:</p>
++              {currentQuestion.options.map((option, idx) => (
++                <button
++                  key={idx}
++                  onClick={() => handleAnswerSelect(option)}
++                  className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
++                    selectedAnswer === option
++                      ? 'border-[#4CAF50] bg-green-50'
++                      : 'border-gray-200 hover:border-[#4CAF50] hover:bg-gray-50'
++                  }`}
++                >
++                  <span className="font-medium">{String.fromCharCode(65 + idx)}.</span>{' '}
++                  {option}
++                </button>
++              ))}
++            </div>
++          )}
++
++          {currentQuestion.type === 'fill_blank' && (
++            <div>
++              <p className="font-medium text-gray-700 mb-4">
++                Nghĩa của từ: <span className="text-black">{currentQuestion.meaning}</span>
++              </p>
++              <p className="text-sm text-gray-600 mb-3">Điền từ tiếng Anh:</p>
++              <Input
++                type="text"
++                placeholder="Nhập từ tiếng Anh..."
++                value={selectedAnswer}
++                onChange={(e) => handleAnswerSelect(e.target.value)}
++                className="text-lg p-4"
++                autoFocus
++              />
++            </div>
++          )}
++        </Card>
++
++        <div className="flex items-center justify-between">
++          <Button
++            onClick={handlePrevious}
++            disabled={currentIndex === 0}
++            variant="outline"
++            className="px-6"
++          >
++            ← Câu trước
++          </Button>
++
++          <Button
++            onClick={handleNext}
++            disabled={!selectedAnswer}
++            className="bg-[#4CAF50] hover:bg-[#45A049] text-white px-8"
++          >
++            {isLastQuestion ? 'Nộp bài' : 'Câu tiếp →'}
++          </Button>
++        </div>
++
++        <div className="text-center mt-4 text-sm text-gray-600">
++          Đã trả lời: {answers.length} / {questions.length} câu
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/components/quiz/QuizResult.tsx b/frontend/src/components/quiz/QuizResult.tsx
+new file mode 100644
+index 0000000..33a04fb
+--- /dev/null
++++ b/frontend/src/components/quiz/QuizResult.tsx
+@@ -0,0 +1,120 @@
++// frontend/src/components/quiz/QuizResult.tsx
++'use client';
++
++import { useRouter } from 'next/navigation';
++import { Button } from '@/components/ui/button';
++import { Card } from '@/components/ui/card';
++import { CheckCircle, XCircle, Trophy, RefreshCw, Home } from 'lucide-react';
++
++interface QuizResultProps {
++  score: number;
++  totalQuestions: number;
++  correctCount: number;
++  isPassed: boolean;
++  onRetry?: () => void;
++  onBackToHub?: () => void;
++}
++
++export default function QuizResult({
++  score,
++  totalQuestions,
++  correctCount,
++  isPassed,
++  onRetry,
++  onBackToHub,
++}: QuizResultProps) {
++  const router = useRouter();
++
++  const handleBackToHub = () => {
++    if (onBackToHub) {
++      onBackToHub();
++    } else {
++      router.push('/quiz');
++    }
++  };
++
++  const handleRetry = () => {
++    if (onRetry) {
++      onRetry();
++    } else {
++      window.location.reload();
++    }
++  };
++
++  return (
++    <div className="min-h-screen bg-[#F5F3E8] flex items-center justify-center p-4">
++      <Card className="max-w-2xl w-full p-8 text-center bg-white shadow-xl">
++        {/* Icon */}
++        <div className="mb-6">
++          {isPassed ? (
++            <div className="w-24 h-24 mx-auto bg-green-100 rounded-full flex items-center justify-center">
++              <Trophy className="w-12 h-12 text-green-600" />
++            </div>
++          ) : (
++            <div className="w-24 h-24 mx-auto bg-red-100 rounded-full flex items-center justify-center">
++              <XCircle className="w-12 h-12 text-red-600" />
++            </div>
++          )}
++        </div>
++
++        {/* Title */}
++        <h1 className="text-4xl font-bold mb-2">
++          {isPassed ? '🎉 Chúc mừng!' : '😔 Chưa đạt'}
++        </h1>
++        <p className="text-lg text-gray-600 mb-8">
++          {isPassed
++            ? 'Bạn đã hoàn thành quiz xuất sắc!'
++            : 'Đừng nản chí! Hãy thử lại nhé!'}
++        </p>
++
++        {/* Score */}
++        <div className="bg-gray-50 rounded-2xl p-8 mb-8">
++          <div className="text-6xl font-bold mb-2" style={{ color: isPassed ? '#4CAF50' : '#f44336' }}>
++            {score.toFixed(0)}%
++          </div>
++          <p className="text-gray-600 text-lg">
++            {correctCount} / {totalQuestions} câu đúng
++          </p>
++        </div>
++
++        {/* Pass/Fail Info */}
++        <div className="mb-8 p-4 rounded-lg" style={{ backgroundColor: isPassed ? '#e8f5e9' : '#ffebee' }}>
++          <p className="text-sm" style={{ color: isPassed ? '#2e7d32' : '#c62828' }}>
++            {isPassed
++              ? '✅ Bạn đã vượt qua mức điểm tối thiểu (70%)'
++              : '❌ Cần đạt tối thiểu 70% để pass'}
++          </p>
++        </div>
++
++        {/* Actions */}
++        <div className="flex flex-col sm:flex-row gap-4 justify-center">
++          <Button
++            onClick={handleRetry}
++            variant="outline"
++            className="border-2 border-[#4CAF50] text-[#4CAF50] hover:bg-[#4CAF50] hover:text-white px-8"
++          >
++            <RefreshCw className="mr-2 h-4 w-4" />
++            Làm lại
++          </Button>
++
++          <Button
++            onClick={handleBackToHub}
++            className="bg-[#4CAF50] hover:bg-[#45A049] text-white px-8"
++          >
++            <Home className="mr-2 h-4 w-4" />
++            Về trang Quiz
++          </Button>
++        </div>
++
++        {/* Tips */}
++        {!isPassed && (
++          <div className="mt-8 p-4 bg-blue-50 rounded-lg">
++            <p className="text-sm text-blue-800">
++              💡 <strong>Mẹo:</strong> Xem lại từ vựng và làm lại quiz để cải thiện điểm số!
++            </p>
++          </div>
++        )}
++      </Card>
++    </div>
++  );
++}
+diff --git a/test-api.js b/test-api.js
+deleted file mode 100644
+index b6737a7..0000000
+--- a/test-api.js
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Simple API test script
+-const http = require('http');
+-
+-// Test 1: Check if server is running
+-const options = {
+-  hostname: 'localhost',
+-  port: 4001,
+-  path: '/api/flashcards/sets',
+-  method: 'GET',
+-  headers: {
+-    'Content-Type': 'application/json',
+-  }
+-};
+-
+-console.log('🔍 Testing Flashcard API...\n');
+-
+-const req = http.request(options, (res) => {
+-  console.log(`✅ Server responded with status: ${res.statusCode}`);
+-  console.log(`Headers:`, res.headers);
+-
+-  let data = '';
+-  res.on('data', (chunk) => {
+-    data += chunk;
+-  });
+-
+-  res.on('end', () => {
+-    try {
+-      const json = JSON.parse(data);
+-      console.log('\n📦 Response body:');
+-      console.log(JSON.stringify(json, null, 2));
+-    } catch (e) {
+-      console.log('\n📦 Response body (not JSON):');
+-      console.log(data);
+-    }
+-  });
+-});
+-
+-req.on('error', (error) => {
+-  console.error('❌ Error:', error.message);
+-});
+-
+-req.end();
+-- 
+2.45.2.windows.1
+

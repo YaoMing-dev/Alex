@@ -1,0 +1,33 @@
+# Node.js
+node_modules
+.pnp
+.pnp.js
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Prisma
+prisma/dev.db
+prisma/seeds/
+
+# Python
+venv_llm/
+venv/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+Python3
+*.pyc
+
+# Docker
+*.dockerignore

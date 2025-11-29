@@ -1,0 +1,253 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+
+  *,
+  ::before,
+  ::after {
+    box-sizing: border-box;
+  }
+}
+
+@layer utilities {
+  @keyframes scroll-right-infinite {
+
+    /* Bắt đầu: không dịch chuyển */
+    from {
+      transform: translateX(-50%);
+    }
+
+    /* Kết thúc: Dịch chuyển bằng độ rộng của một bản sao (50% của container 200%) */
+    to {
+      transform: translateX(0%);
+    }
+  }
+
+  @keyframes scroll-left-custom {
+    from {
+      transform: translateX(0%);
+    }
+
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  @keyframes wave {
+    0% {
+      background-position: 0% 50%;
+    }
+
+    50% {
+      background-position: 100% 50%;
+    }
+
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  @keyframes mesh-breathe {
+
+    0%,
+    100% {
+      transform: scale(0.95);
+    }
+
+    50% {
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes aurora-rotate {
+    0% {
+      transform: translate(-50%, -50%) rotate(0deg);
+    }
+
+    100% {
+      transform: translate(-50%, -50%) rotate(360deg);
+    }
+  }
+
+  @keyframes fade-in-up {
+    0% {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Flashcard 3D Flip Animation Utilities */
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  /* Định nghĩa các lớp tiện ích Tailwindcss */
+  .header-gradient-border {
+    border-image: linear-gradient(to right, rgba(22, 97, 88, 0.5), rgba(196, 211, 210, 0.5)) 1;
+    border-radius: 0.625rem;
+    /* 10px */
+  }
+
+  .dark .header-gradient-border {
+    border-image: linear-gradient(to right, rgba(27, 71, 93, 0.5), rgba(79, 157, 149, 0.5)) 1;
+  }
+
+  .animate-scroll-right-custom {
+    animation: scroll-right-infinite 40s linear infinite;
+    /* Sử dụng tốc độ 40s */
+  }
+
+  .animate-scroll-left-custom {
+    animation: scroll-left-custom 30s linear infinite;
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    /* IE and Edge */
+    scrollbar-width: none;
+    /* Firefox */
+  }
+
+  /* Ẩn root Header */
+  .no-header .root-header {
+    display: none;
+  }
+
+  /* Ẩn Root Footer */
+  .no-header .root-footer {
+    display: none;
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.9s ease-out forwards;
+  }
+
+  /* Thêm logic để ẩn animation ban đầu cho các phần tử animation trong trang Auth 
+   trước khi CSS được tải (giảm giật) 
+*/
+  .auth-page .animate-fade-in-up {
+    opacity: 0;
+    /* Đảm bảo ẩn trước khi animation chạy */
+  }
+}
+
+:root {
+  /* BIẾN FONT */
+  --font-inter: var(--font-inter-value);
+  --font-xanhmono: var(--font-xanhmono-value);
+  --font-instrumentsans: var(--font-instrumentsans-value);
+
+  /* GENERAL/RADIUS */
+  --radius: 0.625rem;
+  /* 10px */
+
+  /* MÀU SẮC EDUAION CHUẨN (Design Tokens - HSL Values) */
+  /* XÓA: Các biến màu custom đã được chuyển sang HEX trong tailwind.config.js */
+  /* --color-primary-dark: 204 53% 23%; */
+  /* --color-primary-base: 173 63% 23%; */
+  /* --color-primary-light: 170 17% 86%; */
+  /* --color-highlight: 45 61% 85%;    */
+  /* --color-destructive: 0 84% 60%;  */
+
+  --edu-primary: 221 83% 53%;
+  /* Ví dụ: hsl(221, 83%, 53%) - blue */
+  --edu-highlight: 260 100% 66%;
+  /* Ví dụ: hsl(260, 100%, 66%) - purple */
+
+  /* MÀU NGỮ CẢNH (SEMANTIC TOKENS) - LIGHT MODE */
+
+  /* 1. PRIMARY & RING (Dùng màu xanh #166158 | HSL: 173 63% 23%) */
+  --primary: 173 63% 23%;
+  --primary-foreground: 0 0% 100%;
+  /* White */
+  --ring: 173 63% 23%;
+
+  /* 2. BACKGROUND & FOREGROUND (Màu nền trắng/Text xanh đậm #1B475D | HSL: 204 53% 23%) */
+  --background: 0 0% 100%;
+  --foreground: 204 53% 15%;
+  /* Text chính (Hơi tối hơn 23%) */
+
+  /* 3. BORDER, INPUT, MUTED, SECONDARY, ACCENT (Dùng tông xám/xanh nhạt chung) */
+  --border: 214 30% 90%;
+  --input: 214 30% 90%;
+
+  /* Muted, Secondary, Accent: Nền nhẹ nhàng */
+  --muted: 214 30% 96%;
+  --muted-foreground: 215 16% 47%;
+
+  --secondary: 214 30% 96%;
+  --secondary-foreground: 204 53% 15%;
+  /* Text foreground */
+
+  --accent: 214 30% 96%;
+  --accent-foreground: 204 53% 15%;
+
+  /* 4. CARD & POPOVER (Giữ nguyên trắng) */
+  --card: 0 0% 100%;
+  --card-foreground: var(--foreground);
+  --popover: 0 0% 100%;
+  --popover-foreground: var(--foreground);
+
+  /* 5. DESTRUCTIVE (Giữ nguyên đỏ) */
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+}
+
+/* Cần định nghĩa lại logic dark mode nếu muốn hỗ trợ */
+.dark {
+  /* BACKGROUND & FOREGROUND */
+  --background: 224 71% 4%;
+  /* Nền tối đậm */
+  --foreground: 210 20% 98%;
+  /* Text trắng */
+
+  /* PRIMARY & RING */
+  --primary: 173 63% 45%;
+  /* Xanh sáng hơn #166158 để nổi bật trên nền tối */
+  --primary-foreground: 224 71% 4%;
+  /* Màu nền tối */
+  --ring: 173 63% 45%;
+
+  /* BORDER, INPUT, MUTED, SECONDARY, ACCENT */
+  --border: 215 28% 17%;
+  --input: 215 28% 17%;
+
+  --muted: 215 28% 17%;
+  --muted-foreground: 217 10% 64%;
+
+  --secondary: 215 28% 17%;
+  --secondary-foreground: 210 20% 98%;
+
+  --accent: 215 28% 17%;
+  --accent-foreground: 210 20% 98%;
+
+  /* CARD & POPOVER */
+  --card: 215 28% 17%;
+  --card-foreground: 210 20% 98%;
+  --popover: 215 28% 17%;
+  --popover-foreground: 210 20% 98%;
+
+  /* DESTRUCTIVE */
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 98%;
+}

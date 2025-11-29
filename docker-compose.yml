@@ -1,0 +1,15 @@
+version: '1'
+services:
+  postgres:
+    image: postgres:15  # Phiên bản mới, ổn định
+    restart: always  # Tự restart nếu crash
+    environment:
+      POSTGRES_USER: postgres  # Default user, giữ nguyên
+      POSTGRES_PASSWORD: mysecurepass  # lưu bí mật (không commit .env)
+      POSTGRES_DB: eduaion_db  # Tên DB, giữ để Prisma connect dễ
+    ports:
+      - '5432:5432'  # Port local:5432 map vào container
+    volumes:
+      - pgdata:/var/lib/postgresql/data  # Lưu data để không mất khi stop
+volumes:
+  pgdata:  # Volume để backup data

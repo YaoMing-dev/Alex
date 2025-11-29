@@ -1,0 +1,26 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+prisma/migrations/
+
+# Bỏ qua các file DỮ LIỆU TĨNH và FILE NÉN trong thư mục seeding
+prisma/seeds/
+# Các file audio MP3 (UK và US)
+prisma/seeds/**/*.mp3
+
+# Các file image (Theme và Lesson)
+prisma/seeds/**/*.jpg
+prisma/seeds/**/*.jpeg
+prisma/seeds/**/*.png
+
+# Bỏ qua các thư mục chứa file audio (nếu bạn không muốn xóa chúng ngay)
+prisma/seeds/audio/uk_audio_split_24m/
+prisma/seeds/audio/us_audio_split_24m/
+
+# Bỏ qua các file nén đa phần (Multi-part compressed files)
+prisma/seeds/**/*.z01
+prisma/seeds/**/*.z02
+prisma/seeds/**/*.z03
+
+/generated/prisma

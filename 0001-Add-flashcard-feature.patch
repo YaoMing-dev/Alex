@@ -1,0 +1,5049 @@
+From b10ae625810c73d565c7f0b1954523d71caca9b1 Mon Sep 17 00:00:00 2001
+From: FemtoHell <femtohell@gmail.com>
+Date: Fri, 28 Nov 2025 10:09:18 +0700
+Subject: [PATCH 1/2] Add flashcard feature
+
+---
+ 01_flashcard_overview_description.txt         | 577 +++++++++++
+ 02_flashcard_create_deck_description.txt      | 342 +++++++
+ 03_flashcard_study_mode_description.txt       | 927 ++++++++++++++++++
+ backend/prisma/schema.prisma                  |  54 +-
+ backend/prisma/seed_flashcards.ts             | 308 ++++++
+ backend/src/app.ts                            |  40 +-
+ .../src/controllers/FlashcardController.ts    | 314 ++++++
+ backend/src/controllers/VocabController.ts    |  34 +-
+ backend/src/routes/FlashcardRoute.ts          |  31 +
+ backend/src/routes/VocabRoute.ts              |   4 +
+ backend/src/services/FlashcardService.ts      | 328 +++++++
+ frontend/next.config.ts                       |   9 +-
+ .../flashcard/quiz/[id]/page.tsx              | 368 +++++++
+ .../flashcard/study/[id]/page.tsx             | 451 +++++++++
+ .../app/(protected)/flashcard/create/page.tsx | 395 ++++++++
+ .../src/app/(protected)/flashcard/page.tsx    | 227 +++++
+ frontend/src/app/(protected)/profile/page.tsx |   2 +-
+ .../src/components/settings/ProfileForm.tsx   |   9 +-
+ frontend/src/lib/api/auth.ts                  |   2 +-
+ frontend/src/lib/api/axiosInstance.ts         |   2 +-
+ frontend/src/lib/api/flashcard.ts             | 125 +++
+ frontend/src/lib/types/flashcard.ts           | 128 +++
+ frontend/src/styles/globals.css               |  14 +
+ test-api.js                                   |  42 +
+ 24 files changed, 4679 insertions(+), 54 deletions(-)
+ create mode 100644 01_flashcard_overview_description.txt
+ create mode 100644 02_flashcard_create_deck_description.txt
+ create mode 100644 03_flashcard_study_mode_description.txt
+ create mode 100644 backend/prisma/seed_flashcards.ts
+ create mode 100644 backend/src/controllers/FlashcardController.ts
+ create mode 100644 backend/src/routes/FlashcardRoute.ts
+ create mode 100644 backend/src/services/FlashcardService.ts
+ create mode 100644 frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx
+ create mode 100644 frontend/src/app/(full_screen)/flashcard/study/[id]/page.tsx
+ create mode 100644 frontend/src/app/(protected)/flashcard/create/page.tsx
+ create mode 100644 frontend/src/app/(protected)/flashcard/page.tsx
+ create mode 100644 frontend/src/lib/api/flashcard.ts
+ create mode 100644 frontend/src/lib/types/flashcard.ts
+ create mode 100644 test-api.js
+
+diff --git a/01_flashcard_overview_description.txt b/01_flashcard_overview_description.txt
+new file mode 100644
+index 0000000..83cb142
+--- /dev/null
++++ b/01_flashcard_overview_description.txt
+@@ -0,0 +1,577 @@
++FLASHCARD OVERVIEW SCREEN - MÔ TẢ GIAO DIỆN CHI TIẾT
++
++==============================================================================
++1. HEADER (Navigation Bar)
++==============================================================================
++- Logo EDUAION ở góc trái với icon 3 ô vuông
++- Menu điều hướng ngang: Home | Vocabulary | Flashcard (active) | Quiz | Writing Practice
++- Bên phải: Avatar user "Louis" với dropdown menu + icon thông báo
++- Background: Màu trắng (#FFFFFF)
++- Active tab "Flashcard" có underline hoặc màu nổi bật
++
++==============================================================================
++2. HERO SECTION (Tiêu đề chính)
++==============================================================================
++- Heading lớn: "Flashcard Ôn Tập" 
++  + Font: Bold, size lớn (~40-48px)
++  + Màu: Đen (#000000)
++  
++- Subheading: "Tạo và ôn từ vựng túy ý để nhớ lâu hơn"
++  + Font: Regular, size vừa (~18-20px)
++  + Màu: Xám đậm (#333333)
++  
++- Background: Màu be nhạt (#F5F3E8) cho toàn màn hình chính
++
++==============================================================================
++3. TOOLBAR (Thanh công cụ)
++==============================================================================
++- Nút "Tạo mới" 
++  + Màu: Trắng với viền xanh lá (#4CAF50)
++  + Icon: "+" hoặc không có icon
++  + Position: Bên trái
++  
++- Dropdown "Sort by"
++  + Icon: Arrow down
++  + Màu: Trắng với viền xám nhạt
++  + Position: Giữa
++  
++- Ô tìm kiếm "Search..."
++  + Icon: Search/magnifying glass bên phải
++  + Width: ~300px
++  + Background: Trắng
++  + Border: Xám nhạt rounded
++  + Position: Bên phải
++
++- Khoảng cách đều giữa các elements
++- Margin bottom: 30-40px từ grid cards
++
++==============================================================================
++4. LƯỚI THẺ HỌC (FLASHCARD GRID) - CHẾ ĐỘ TÙY CHỈNH TỰ DO
++==============================================================================
++
++KHÁI NIỆM CHÍNH:
++- Người dùng CÓ THỂ TÙY CHỈNH HOÀN TOÀN mỗi thẻ học
++- Mỗi thẻ là một "deck" có thể được cá nhân hóa về:
++  + Kích thước (chiều dài x chiều rộng)
++  + Màu sắc background
++  + Chủ đề/category
++  + Số lượng flashcards bên trong
++- Lưới thẻ học = Pinterest-style masonry grid với khả năng tùy biến cao
++
++---
++
++LAYOUT SYSTEM:
++
++GRID STRUCTURE:
++- Type: Masonry/Pinterest-style responsive grid
++- Desktop: 3 cột
++- Tablet: 2 cột  
++- Mobile: 1 cột
++- Gap giữa cards: 20-24px
++- Auto-reflow khi user thay đổi kích thước cards
++
++DYNAMIC SIZING:
++- Cards CÓ THỂ có chiều cao KHÁC NHAU (user-defined)
++- Cards CÓ THỂ có chiều rộng KHÁC NHAU:
++  + Small: 1/3 width (1 column)
++  + Medium: 2/3 width (2 columns span)
++  + Large: Full width (3 columns span)
++- User có thể drag để resize cards (optional feature)
++- Minimum height: 120px
++- Maximum height: 600px
++- Height adjusts automatically dựa trên content
++
++---
++
++CẤU TRÚC MỖI THẺ (CARD ANATOMY):
++
++CARD CONTAINER:
++- Background: TÙY CHỈNH bởi người dùng
++  + Color picker: Full spectrum
++  + Gradient options: Linear, radial
++  + Pattern options: Solid, striped, dotted
++  + Opacity control: 0-100%
++  + Preset themes: 20+ color palettes
++  
++- Border-radius: 12-16px (consistent)
++- Padding: 24px (hoặc adjust theo card size)
++- Shadow: Soft box-shadow (0 4px 12px rgba(0,0,0,0.08))
++- Transition: all 0.3s ease
++
++CARD HEADER (Top section):
++- Icon/Emoji (optional, user-selected)
++  + Size: 32-40px
++  + Position: Top left hoặc center
++  + Library: 500+ icons/emojis
++  
++- Tiêu đề/Chủ đề (VD: "Art and Culture", "Animals - Pets")
++  + Font: Bold, 24-28px
++  + Màu: TÙY CHỈNH (auto-contrast với background)
++  + Text-align: Left, Center, hoặc Right (user choice)
++  + Max length: 50 characters
++  + Word wrap: enabled
++
++CARD BODY (Middle section):
++- Mô tả ngắn (optional)
++  + Font: Regular, 14-16px
++  + Color: Inherit from title với opacity 0.8
++  + Max 2-3 lines
++  + Truncate với "..."
++
++- Tags/Labels (optional)
++  + Pills design
++  + Background: Semi-transparent
++  + Font: 12px
++  + Max 3 tags visible
++
++CARD FOOTER (Bottom section):
++- Số lượng flashcards
++  + Text: "12 Cards" / "20 Cards" / "10 Cards"
++  + Font: Regular, 16px
++  + Icon: Card stack icon (optional)
++  + Color: Inherit với opacity 0.8
++  + Position: Bottom left hoặc bottom center
++
++- Last studied date (optional)
++  + Text: "Học lần cuối: 2 ngày trước"
++  + Font: 12-14px
++  + Color: Grey
++  + Position: Below card count
++
++- Progress indicator (optional)
++  + Progress bar: Mini bar showing % completed
++  + Width: 100% of card width
++  + Height: 4px
++  + Color: Green for completed, grey for remaining
++
++CARD ACTIONS (Menu):
++- Menu icon (3 dots vertical/horizontal)
++  + Position: Top right hoặc bottom left (user preference)
++  + Size: 24x24px
++  + Color: Auto-contrast
++  + Hover: Background circle appear
++
++- Dropdown menu options:
++  + Chỉnh sửa thẻ (Edit deck)
++  + Thay đổi màu sắc (Change color)
++  + Thay đổi kích thước (Resize)
++  + Duplicate thẻ (Duplicate)
++  + Xóa thẻ (Delete)
++  + Di chuyển (Move to folder)
++  + Chia sẻ (Share)
++
++---
++
++VÍ DỤ CÁC CARD TÙY CHỈNH (Như trong ảnh):
++
++CARD 1: "Art and Culture"
++- Size: Large (chiều cao ~300px)
++- Background: Màu vàng pastel (#E8D68A)
++- Text color: Đen (#000000)
++- Card count: 12 Cards
++- Layout: Vertical, icon-less
++- Menu position: Bottom left
++
++CARD 2: "Animals - Pets"
++- Size: Small (chiều cao ~145px)
++- Background: Xanh navy đậm (#2C4356)
++- Text color: Trắng (#FFFFFF)
++- Card count: 20 Cards
++- Layout: Compact
++- Menu position: Bottom left
++
++CARD 3: "Emotions & Personality"
++- Size: Medium (chiều cao ~200px)
++- Background: Xanh lá nhạt (#A5BFB0)
++- Text color: Đen (#000000)
++- Card count: 20 Cards
++- Layout: Standard
++- Menu position: Bottom center
++
++CARD 4: "Accommodation & Hotels"
++- Size: Small (chiều cao ~145px)
++- Background: Xanh lá olive (#C8CC77)
++- Text color: Đen (#000000)
++- Card count: 10 Cards
++- Layout: Compact
++- Menu position: Bottom left
++
++CARD 5: "Education & Learning"
++- Size: Large (chiều cao ~300px)
++- Background: Vàng chanh nhạt (#D4D18F)
++- Text color: Đen (#000000)
++- Card count: 20 Cards
++- Layout: Vertical
++- Menu position: Bottom right
++
++CARD 6: "Animals - Farm"
++- Size: Medium (chiều cao ~200px)
++- Background: Xanh navy đậm (#2C4356)
++- Text color: Trắng (#FFFFFF)
++- Card count: 24 Cards
++- Layout: Standard
++- Menu position: Bottom left
++
++CARD 7: "Electronics"
++- Size: Medium (chiều cao ~200px)
++- Background: Xanh lam xám (#8FB5B0)
++- Text color: Đen (#000000)
++- Card count: 10 Cards
++- Layout: Standard
++- Menu position: Bottom center
++
++---
++
++TÙY CHỈNH CARD - PANEL/MODAL:
++
++KHI USER CLICK "Chỉnh sửa thẻ":
++- Modal popup hoặc slide-in panel (bên phải)
++- Sections:
++
++1. THÔNG TIN CƠ BẢN:
++   - Tên thẻ: Text input
++   - Mô tả: Textarea (optional)
++   - Icon/Emoji: Icon picker
++   - Category/Tags: Multi-select
++
++2. MÀU SẮC & THEME:
++   - Color picker: Full spectrum wheel
++   - Gradient builder: 
++     + 2-color gradient
++     + Direction selector (0-360°)
++     + Gradient type: Linear, Radial, Conic
++   - Preset palettes:
++     + Pastel colors (10 options)
++     + Bold colors (10 options)
++     + Dark mode (10 options)
++     + Custom saved palettes
++   - Background pattern:
++     + Solid
++     + Diagonal stripes
++     + Dots
++     + Waves
++     + Custom upload
++
++3. KÍCH THƯỚC:
++   - Width selector:
++     + Radio buttons: Small | Medium | Large
++     + Custom pixel input
++   - Height selector:
++     + Auto (based on content)
++     + Fixed height slider (120px - 600px)
++     + Custom pixel input
++   - Aspect ratio lock (optional)
++
++4. BỐ CỤC (LAYOUT):
++   - Text alignment: Left | Center | Right
++   - Icon position: Top | Left | None
++   - Menu position: Top-right | Bottom-left | Bottom-right
++   - Padding: Slider (12px - 40px)
++
++5. KIỂU CHỮ (TYPOGRAPHY):
++   - Font family: Dropdown (5-10 options)
++   - Title size: Slider (16px - 36px)
++   - Text color: Color picker (auto-contrast suggestion)
++   - Font weight: Light | Regular | Bold
++
++6. HIỂN THỊ (VISIBILITY):
++   - Checkboxes:
++     [ ] Hiện số lượng cards
++     [ ] Hiện ngày học cuối
++     [ ] Hiện thanh tiến độ
++     [ ] Hiện tags/labels
++     [ ] Hiện mô tả
++
++7. PREVIEW:
++   - Live preview card ở bên phải
++   - Updates real-time khi user chỉnh sửa
++
++BUTTONS:
++- "Lưu thay đổi" (Primary green)
++- "Hủy" (Secondary grey)
++- "Áp dụng template" (Load preset)
++- "Lưu làm template" (Save as preset)
++
++---
++
++TẠO THẺ MỚI (CREATE NEW CARD):
++
++TRIGGER:
++- Nút "Tạo mới" ở toolbar
++- Hoặc nút "+" floating ở cuối grid
++- Hoặc Right-click vào grid -> "Tạo thẻ mới"
++
++FLOW:
++1. Click "Tạo mới"
++2. Modal "Tạo thẻ học mới" xuất hiện
++3. Tabs:
++   - "Thẻ trống" (Blank card)
++   - "Từ template" (From template)
++   - "Import từ file" (Import from file)
++
++4. Nếu chọn "Thẻ trống":
++   - Điền thông tin cơ bản (tên, màu sắc mặc định)
++   - Chọn kích thước ban đầu
++   - Click "Tạo" -> Card mới xuất hiện trong grid
++
++5. Nếu chọn "Từ template":
++   - Grid of 20+ pre-made templates
++   - Hover preview
++   - Click to select -> Customize -> Create
++
++6. Nếu chọn "Import":
++   - Upload CSV/Excel/JSON
++   - Auto-create cards from data
++   - Bulk creation
++
++---
++
++DRAG & DROP FUNCTIONALITY:
++
++REORDER CARDS:
++- User có thể kéo thả cards để sắp xếp lại
++- Visual feedback:
++  + Card being dragged: Opacity 0.6, shadow tăng
++  + Drop zone: Highlight border xanh lá
++  + Ghost placeholder: Dotted outline
++- Smooth animation khi drop
++- Auto-save new order
++
++RESIZE BY DRAG:
++- Resize handles ở góc bottom-right của card
++- Cursor: nw-resize
++- Drag để thay đổi chiều cao
++- Snap to grid intervals (50px)
++- Min/max constraints
++- Live preview khi drag
++
++---
++
++BULK ACTIONS:
++
++MULTI-SELECT MODE:
++- Checkbox xuất hiện ở góc top-left mỗi card
++- Select all checkbox ở toolbar
++- Selected state: Border xanh lá đậm, background overlay
++
++BULK OPERATIONS:
++- Thay đổi màu hàng loạt
++- Di chuyển vào folder
++- Xóa nhiều thẻ
++- Export nhiều thẻ
++- Duplicate nhiều thẻ
++- Apply template to selected
++
++---
++
++HOVER EFFECTS & INTERACTIONS:
++
++DEFAULT STATE:
++- Card: Static, no elevation change
++- Shadow: Subtle (0 4px 12px rgba(0,0,0,0.08))
++
++HOVER STATE:
++- Card: Transform scale(1.02) hoặc translateY(-4px)
++- Shadow: Elevation tăng (0 8px 24px rgba(0,0,0,0.15))
++- Cursor: pointer
++- Transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1)
++- Menu icon: Fade in (opacity 0 -> 1)
++- Border: Optional glow effect
++
++ACTIVE/CLICK STATE:
++- Scale: 0.98
++- Shadow: Giảm nhẹ
++- Duration: 100ms
++
++SELECTED STATE (Multi-select):
++- Border: 3px solid xanh lá (#4CAF50)
++- Background overlay: rgba(76, 175, 80, 0.1)
++- Checkmark: Visible ở top-left
++
++---
++
++LOADING & EMPTY STATES:
++
++LOADING CARDS:
++- Skeleton cards với shimmer effect
++- Layout: Same grid structure
++- Animation: Wave gradient
++- Duration: Until cards load
++
++EMPTY STATE (No cards):
++- Illustration: Empty folder hoặc card stack
++- Heading: "Chưa có thẻ học nào"
++- Subtext: "Tạo thẻ đầu tiên để bắt đầu học từ vựng"
++- Button: "Tạo thẻ đầu tiên" (Large, green, center)
++- Alternative: "Duyệt templates" link
++
++SEARCH NO RESULTS:
++- Illustration: Magnifying glass
++- Text: "Không tìm thấy thẻ nào phù hợp"
++- Suggestion: "Thử từ khóa khác hoặc tạo thẻ mới"
++- Button: "Xóa bộ lọc" / "Tạo thẻ mới"
++
++---
++
++FILTERS & ORGANIZATION:
++
++FOLDER SYSTEM (Optional):
++- Sidebar with folders (collapsible)
++- Nested folders support
++- Drag cards into folders
++- Folder colors customizable
++
++VIEW MODES:
++- Grid view (default - masonry)
++- List view (rows with details)
++- Compact view (smaller cards)
++- Timeline view (sorted by date)
++
++SORT OPTIONS (Dropdown):
++- Alphabetical (A-Z, Z-A)
++- Date created (Newest, Oldest)
++- Last studied (Recent first)
++- Card count (Most, Least)
++- Custom order (Manual drag)
++
++FILTER OPTIONS:
++- By color
++- By tag/category
++- By card count
++- By progress (Not started, In progress, Completed)
++- By date range
++
++==============================================================================
++5. PAGINATION
++==============================================================================
++- Position: Center, bottom của grid
++- Background: Trắng
++- Padding: 16px 24px
++- Border-radius: 24px
++- Shadow: Subtle box-shadow
++
++ELEMENTS:
++- Nút Previous: Arrow left icon
++- Số trang: 1, 2, 3, 4, 5, 6, 7 (page 1 active - màu xanh lá #4CAF50)
++- Nút Next: Arrow right icon
++- Active page: Background xanh lá đậm, text trắng, rounded-full
++- Inactive pages: Text xám, hover background xám nhạt
++- Gap: 8px giữa các số
++
++==============================================================================
++6. FOOTER
++==============================================================================
++- Background: Trắng (#FFFFFF)
++- Padding: 40px 0
++- Border-top: 1px solid #E5E5E5
++
++LEFT SECTION:
++- Logo EDUAION + tagline "ENGLISH MADE EASY, SMARTER WITH AI"
++- Contact info:
++  + Phone: 84 28 3620 5544 (với icon điện thoại)
++  + Email: info@eduaion.com.vn (với icon email)
++  + Address: 45A Lê Duẩn, Phường Bến Nghé, Quận 1, TP HCM (với icon location)
++- Font: 14px, màu xám đậm
++
++MIDDLE SECTION (Quick Links):
++- Heading: "Quick Links" (Font bold)
++- Links:
++  + About us
++  + Contact  
++  + Sign up
++- Font: 14px, màu xám
++- Hover: Underline hoặc màu đậm hơn
++
++RIGHT SECTION (Support):
++- Heading: "Support" (Font bold)
++- Links:
++  + FAQ
++  + User Guide
++  + Privacy Policy
++  + Terms of Service
++- Font: 14px, màu xám
++- Hover: Underline hoặc màu đậm hơn
++
++BOTTOM:
++- Copyright: "EduAIon Education Tech Co., Ltd."
++- Social icons: Facebook + Instagram (màu gốc của từng platform)
++- Alignment: Copyright trái, social icons phải
++
++==============================================================================
++7. RESPONSIVE BREAKPOINTS
++==============================================================================
++
++DESKTOP (1200px+):
++- 3 columns grid
++- Full navigation visible
++- Toolbar horizontal
++
++TABLET (768px - 1199px):
++- 2 columns grid
++- Collapsed navigation (hamburger menu)
++- Toolbar có thể stack vertical
++
++MOBILE (< 768px):
++- 1 column grid
++- Hamburger menu
++- Toolbar stack vertical
++- Search full width
++- Pagination compact (fewer page numbers visible)
++- Footer stack vertical
++
++==============================================================================
++8. COLORS PALETTE
++==============================================================================
++- Primary Green: #4CAF50
++- Navy: #2C4356
++- Yellow Pastel: #E8D68A
++- Sage Green: #A5BFB0
++- Olive: #C8CC77
++- Lime: #D4D18F
++- Blue-grey: #8FB5B0
++- Background: #F5F3E8
++- White: #FFFFFF
++- Text Dark: #000000
++- Text Grey: #666666
++
++==============================================================================
++9. TYPOGRAPHY
++==============================================================================
++- Font family: Inter, Segoe UI, hoặc system font
++- Heading: Bold 600-700
++- Body: Regular 400
++- Small text: 14px
++- Body text: 16px
++- Card title: 24-28px
++- Page title: 40-48px
++
++==============================================================================
++10. SPACING SYSTEM
++==============================================================================
++- Base unit: 8px
++- Small gap: 8px
++- Medium gap: 16px
++- Large gap: 24px
++- XL gap: 32px
++- Card padding: 24px
++- Section padding: 40px
++- Container max-width: 1200-1400px
++
++==============================================================================
++11. ANIMATIONS & INTERACTIONS
++==============================================================================
++- Card hover: Scale 1.02 + shadow elevation
++- Button hover: Background darken 10%
++- Transition duration: 200-300ms
++- Easing: ease-in-out
++- Menu dots hover: Background overlay 0.1 opacity
++- Link hover: Underline appear smoothly
++
++==============================================================================
++12. ACCESSIBILITY
++==============================================================================
++- Focus states: Outline visible cho keyboard navigation
++- Alt text cho icons
++- Contrast ratio: WCAG AA compliant
++- Touch targets: Minimum 44x44px
++- Screen reader labels cho icons-only buttons
+diff --git a/02_flashcard_create_deck_description.txt b/02_flashcard_create_deck_description.txt
+new file mode 100644
+index 0000000..1b1552d
+--- /dev/null
++++ b/02_flashcard_create_deck_description.txt
+@@ -0,0 +1,342 @@
++FLASHCARD CREATE DECK SCREEN - MÔ TẢ GIAO DIỆN CHI TIẾT
++
++==============================================================================
++1. HEADER (Navigation Bar)
++==============================================================================
++- Giống với Overview screen
++- Logo EDUAION ở góc trái
++- Menu: Home | Vocabulary | Flashcard (active) | Quiz | Writing Practice
++- Avatar "Louis" + dropdown + notification icon bên phải
++- Background: Trắng (#FFFFFF)
++
++==============================================================================
++2. HERO SECTION
++==============================================================================
++- Heading: "Flashcard Ôn Tập"
++  + Font: Bold, 40-48px
++  + Màu: Đen (#000000)
++  
++- Subheading: "Tạo và ôn từ vựng túy ý để nhớ lâu hơn"
++  + Font: Regular, 18-20px
++  + Màu: Xám đậm (#333333)
++  
++- Background: Màu be nhạt (#F5F3E8)
++
++==============================================================================
++3. BACK BUTTON
++==============================================================================
++- Nút "< Thoát"
++  + Position: Top left của content area
++  + Background: Trắng với viền xám
++  + Border-radius: 8px
++  + Padding: 8px 16px
++  + Font: 14-16px
++  + Icon: Arrow left "<"
++  + Hover: Background xám nhạt
++  + Margin-bottom: 24px
++
++==============================================================================
++4. MAIN CONTAINER (Create Deck Form)
++==============================================================================
++
++LAYOUT:
++- Background: Xanh lá olive nhạt (#C8CC77) - tương tự card "Accommodation & Hotels"
++- Border-radius: 16px
++- Padding: 32-40px
++- Max-width: 900-1000px
++- Margin: 0 auto
++- Shadow: Subtle box-shadow
++
++==============================================================================
++5. DECK NAME INPUT (Top Section)
++==============================================================================
++
++- Input field "Tên bộ sưu tập *"
++  + Background: Trắng
++  + Border-radius: 24px (rounded-full style)
++  + Padding: 12px 20px
++  + Width: ~50% màn hình
++  + Placeholder: "Tên bộ sưu tập *"
++  + Font: 16px
++  + Border: None hoặc 1px solid transparent
++  + Focus: Border xanh lá hoặc shadow
++
++- Info badge (bên phải của container)
++  + Icon: "+" circle với màu xanh lá
++  + Text: "Thêm thẻ mới"
++  + Sub-text: "Chỉ được nhập nội dung vào các thẻ không lưu chọn từ kho từ vựng 5000+"
++  + Background: Xanh nhạt với opacity
++  + Padding: 12px 16px
++  + Border-radius: 8px
++  + Font: 12-14px
++  + Color: Xám đậm
++
++- Nút "Lưu lại"
++  + Position: Top right
++  + Background: Xanh lá đậm (#4CAF50)
++  + Color: Trắng
++  + Padding: 10px 32px
++  + Border-radius: 24px (rounded-full)
++  + Font: Bold, 16px
++  + Hover: Background đậm hơn
++  + Shadow: Subtle
++
++==============================================================================
++6. CARD SECTIONS (Thẻ 2 và Thẻ 1)
++==============================================================================
++
++GENERAL CARD STYLING:
++- Background: Trắng (#FFFFFF)
++- Border-radius: 12px
++- Padding: 24px
++- Margin-bottom: 20px
++- Shadow: Light box-shadow
++
++---
++
++CARD HEADER:
++- Label: "Thẻ 2" hoặc "Thẻ 1"
++  + Font: Bold, 18-20px
++  + Margin-bottom: 16px
++  
++- Search box (bên phải)
++  + Placeholder: "Search..."
++  + Width: 250-300px
++  + Background: Xám nhạt (#F5F5F5)
++  + Border-radius: 8px
++  + Padding: 8px 16px
++  + Icon: Search/magnifying glass bên phải
++  + Border: None
++
++---
++
++CARD CONTENT (4 input fields mỗi thẻ):
++
++Row 1:
++- Field 1 (Từ vựng tiếng Anh):
++  + VD: "package" hoặc "bed"
++  + Background: Xám rất nhạt (#F9F9F9)
++  + Border-radius: 8px
++  + Padding: 12px 16px
++  + Width: 45%
++  + Float: Left
++  
++- Field 2 (Định nghĩa tiếng Anh):
++  + VD: "An object or set of objects wrapped in paper..."
++  + VD: "a piece of furniture for sleeping on"
++  + Background: Xám rất nhạt (#F9F9F9)
++  + Border-radius: 8px
++  + Padding: 12px 16px
++  + Width: 50%
++  + Float: Right
++  
++- Gap giữa 2 fields: 5%
++
++Row 2:
++- Field 3 (Phiên âm IPA):
++  + VD: "/pæk.ɪdʒ/" hoặc "/bed/"
++  + Background: Xám rất nhạt (#F9F9F9)
++  + Border-radius: 8px
++  + Padding: 12px 16px
++  + Width: 45%
++  + Float: Left
++  
++- Field 4 (Nghĩa tiếng Việt):
++  + VD: "Bưu kiện" hoặc "Cái giường"
++  + Background: Xám rất nhạt (#F9F9F9)
++  + Border-radius: 8px
++  + Padding: 12px 16px
++  + Width: 50%
++  + Float: Right
++
++Row 3 (Example sentence):
++- Field 5 (Câu ví dụ):
++  + VD: "The package was wrapped in plain brown paper"
++  + VD: "a single/double bed"
++  + Background: Xám rất nhạt (#F9F9F9)
++  + Border-radius: 8px
++  + Padding: 12px 16px
++  + Width: 100%
++  + Margin-top: 12px
++
++---
++
++CARD FOOTER:
++- Text/Link: "Ví dụ câu" (với icon checkmark xanh lá)
++  + Font: 14px
++  + Color: Xanh lá (#4CAF50)
++  + Icon: Checkmark circle
++  + Position: Bottom left
++  + Cursor: pointer
++  + Margin-top: 16px
++
++==============================================================================
++7. SPACING BETWEEN CARDS
++==============================================================================
++- Gap giữa "Thẻ 2" và "Thẻ 1": 24px
++- Cards stack vertically
++- Scroll nếu có nhiều cards
++
++==============================================================================
++8. FLOATING ACTION ELEMENTS
++==============================================================================
++
++ADD CARD BUTTON (Giữa 2 cards hoặc cuối danh sách):
++- Icon: "+" circle
++- Size: 48px
++- Background: Xanh lá (#4CAF50)
++- Position: Center align
++- Shadow: Medium
++- Hover: Scale 1.1
++- Margin: 16px 0
++
++DELETE CARD BUTTON (Mỗi card):
++- Icon: Trash bin hoặc "X"
++- Position: Top right của mỗi card
++- Color: Đỏ nhạt hoặc xám
++- Size: 24x24px
++- Hover: Color đỏ đậm
++- Background: Transparent hoặc hover background đỏ nhạt
++
++==============================================================================
++9. FOOTER
++==============================================================================
++- Giống với Overview screen
++- Background: Trắng
++- Sections: Logo/Contact | Quick Links | Support
++- Social icons: Facebook + Instagram
++- Copyright: EduAIon Education Tech Co., Ltd.
++
++==============================================================================
++10. FORM VALIDATION & STATES
++==============================================================================
++
++REQUIRED FIELD:
++- Asterisk (*) màu đỏ sau label
++- Empty state: Border đỏ khi submit
++- Error message: Text đỏ, 12px, dưới field
++
++INPUT STATES:
++- Default: Border transparent hoặc xám nhạt
++- Focus: Border xanh lá hoặc shadow xanh
++- Filled: Background trắng hoặc xám nhạt
++- Error: Border đỏ + error message
++- Disabled: Background xám, cursor not-allowed
++
++SAVE BUTTON STATES:
++- Default: Xanh lá solid
++- Hover: Xanh đậm hơn + shadow tăng
++- Active/Click: Scale 0.98
++- Disabled: Xám nhạt, cursor not-allowed
++- Loading: Spinner icon, text "Đang lưu..."
++
++==============================================================================
++11. RESPONSIVE DESIGN
++==============================================================================
++
++DESKTOP (1200px+):
++- 2 columns cho input fields (45% + 50%)
++- Full width cho example sentence
++- Deck name input ~50% width
++
++TABLET (768px - 1199px):
++- Stack fields vertical (full width)
++- Deck name input 70% width
++- Padding reduced to 24px
++- Font sizes slightly smaller
++
++MOBILE (< 768px):
++- All fields full width (100%)
++- Stack vertical completely
++- Padding: 16px
++- Font sizes smaller (14px base)
++- Nút "Lưu lại" full width hoặc 90%
++- Search box full width
++- Info badge stack dưới deck name input
++
++==============================================================================
++12. INTERACTIONS & MICROANIMATIONS
++==============================================================================
++
++FIELD FOCUS:
++- Smooth border color transition (200ms)
++- Slight shadow appear
++- Placeholder fade out smoothly
++
++ADD CARD:
++- New card slide in from bottom
++- Fade in animation (300ms)
++- Auto-scroll to new card
++
++DELETE CARD:
++- Confirm dialog trước khi xóa
++- Fade out + slide up animation
++- Gap collapse smoothly
++
++SAVE ACTION:
++- Button loading state với spinner
++- Success: Checkmark animation + toast message
++- Error: Shake animation + error toast
++
++DRAG & DROP (Optional enhancement):
++- Cards có thể kéo thả để reorder
++- Visual indicator khi dragging
++- Drop zone highlight
++
++==============================================================================
++13. COLORS & THEMING
++==============================================================================
++- Primary: #4CAF50 (Xanh lá)
++- Container background: #C8CC77 (Olive nhạt)
++- Card background: #FFFFFF
++- Input background: #F9F9F9 hoặc #F5F5F5
++- Text primary: #000000
++- Text secondary: #666666
++- Border: #E0E0E0
++- Error: #F44336
++- Success: #4CAF50
++
++==============================================================================
++14. TYPOGRAPHY
++==============================================================================
++- Heading: Bold 600-700
++- Card title (Thẻ 1, 2): Bold, 18-20px
++- Input text: Regular, 16px
++- Placeholder: Regular, 16px, opacity 0.6
++- Helper text: Regular, 12-14px
++- Button text: Medium/Bold, 16px
++
++==============================================================================
++15. ACCESSIBILITY
++==============================================================================
++- Label text cho screen readers
++- Keyboard navigation: Tab qua các fields theo thứ tự
++- Focus visible: Outline hoặc border rõ ràng
++- Error announcements cho screen readers
++- Touch targets: Minimum 44x44px
++- Color contrast: WCAG AA compliant
++
++==============================================================================
++16. AUTO-SAVE FEATURE (Optional)
++==============================================================================
++- Auto-save mỗi 30 giây hoặc sau mỗi thay đổi (debounce 2s)
++- Visual indicator: "Đã lưu" text nhỏ, màu xanh, fade in/out
++- Icon: Checkmark nhỏ
++- Position: Cạnh nút "Lưu lại"
++
++==============================================================================
++17. WORD LIBRARY INTEGRATION
++==============================================================================
++- Dropdown suggestions khi typing vào field Từ vựng
++- Auto-fill các fields khác khi chọn từ library
++- Visual indicator: Icon "từ kho 5000+" 
++- Disable edit khi chọn từ library (theo info text)
++
++==============================================================================
++18. EMPTY STATE
++==============================================================================
++- Khi chưa có card nào:
++  + Icon: Flashcard illustration
++  + Text: "Chưa có thẻ nào. Bấm '+' để thêm thẻ đầu tiên"
++  + Button: "Thêm thẻ đầu tiên" màu xanh lá
++  + Center align trong container
+diff --git a/03_flashcard_study_mode_description.txt b/03_flashcard_study_mode_description.txt
+new file mode 100644
+index 0000000..babcc10
+--- /dev/null
++++ b/03_flashcard_study_mode_description.txt
+@@ -0,0 +1,927 @@
++FLASHCARD STUDY MODE SCREEN - MÔ TẢ GIAO DIỆN CHI TIẾT
++
++==============================================================================
++1. HEADER (Navigation Bar)
++==============================================================================
++- Giống với các màn hình khác
++- Logo EDUAION ở góc trái
++- Menu: Home | Vocabulary | Flashcard (active) | Quiz | Writing Practice
++- Avatar "Louis" + dropdown + notification icon bên phải
++- Background: Trắng (#FFFFFF)
++
++==============================================================================
++2. PAGE TITLE BAR
++==============================================================================
++- Background: Màu be nhạt (#F5F3E8) hoặc trắng
++- Title: "Flashcard (Study Mode)"
++  + Font: Bold hoặc Semi-bold, 24-28px
++  + Color: Đen hoặc xám đậm (#333333)
++  + Position: Top left hoặc center
++  + Padding: 16px 0
++
++==============================================================================
++3. BACK BUTTON
++==============================================================================
++- Nút "< Thoát"
++  + Position: Top left của content area
++  + Background: Trắng với viền xám nhạt
++  + Border-radius: 8px
++  + Padding: 8px 16px
++  + Font: 14-16px
++  + Icon: Arrow left "<"
++  + Hover: Background xám nhạt (#F5F5F5)
++  + Margin-bottom: 16px
++
++==============================================================================
++4. DECK TITLE & INFO BAR
++==============================================================================
++- Position: Dưới back button, trên card chính
++- Background: Transparent hoặc trắng nhạt
++
++DECK NAME:
++- Text: "Accommodation & Hotels"
++  + Font: Bold, 20-24px
++  + Color: Đen (#000000)
++  + Position: Center align
++
++==============================================================================
++5. CONTROL BAR (Top Controls)
++==============================================================================
++
++LEFT SIDE:
++- Menu button (3 dots horizontal hoặc vertical)
++  + Icon: "⋮" vertical dots
++  + Size: 40x40px
++  + Background: Transparent hoặc hover background xám nhạt
++  + Border-radius: 50% (circle)
++  + Position: Absolute left
++  + Dropdown menu:
++    * Thêm thẻ mới (Add new card) ⭐ QUAN TRỌNG
++    * Chỉnh sửa thẻ hiện tại (Edit current card)
++    * Đánh dấu thẻ (Mark/Favorite)
++    * Báo cáo lỗi (Report error)
++    * Cài đặt học (Study settings)
++    * Thoát (Exit)
++
++CENTER:
++- Progress bar
++  + Background track: Xám nhạt (#E0E0E0)
++  + Progress fill: Xanh lá (#4CAF50)
++  + Height: 6-8px
++  + Border-radius: 4px (rounded)
++  + Width: 40-50% của màn hình
++  + Position: Center horizontal
++  
++- Progress indicator (số)
++  + Text: "7/20" (current/total cards)
++  + Font: 14-16px, Medium
++  + Color: Xám đậm
++  + Position: Bên phải progress bar hoặc trên progress bar
++  + Update realtime khi thêm thẻ mới
++
++RIGHT SIDE:
++- Quick Add button (NÚT THÊM NHANH) ⭐ MỚI
++  + Icon: "+" trong circle
++  + Size: 40x40px
++  + Background: Xanh lá (#4CAF50)
++  + Color: Trắng
++  + Border-radius: 50%
++  + Position: Bên trái nút Close
++  + Tooltip: "Thêm thẻ mới (Ctrl+N)"
++  + Hover: Scale 1.1, shadow tăng
++  + Click: Mở modal "Thêm thẻ mới"
++
++- Close/Exit button
++  + Icon: "✕" hoặc emoji mặt cười "😊"
++  + Size: 40x40px
++  + Background: Transparent hoặc hover background xám nhạt
++  + Border-radius: 50% (circle)
++  + Position: Absolute right
++  + Border: 1px solid xám nhạt (optional)
++
++==============================================================================
++5A. THÊM FLASHCARD TRONG LÚC HỌC (ADD CARD DURING STUDY) ⭐ TÍNH NĂNG MỚI
++==============================================================================
++
++TRIGGER (3 cách):
++1. Click nút "+" ở top-right control bar
++2. Click "Thêm thẻ mới" trong menu (3 dots)
++3. Keyboard shortcut: Ctrl + N hoặc Cmd + N
++
++---
++
++MODAL "THÊM THẺ MỚI" (Add Card Modal):
++
++LAYOUT:
++- Overlay: Semi-transparent black (rgba(0,0,0,0.6))
++- Modal box:
++  + Background: Trắng (#FFFFFF)
++  + Width: 600px (desktop), 90% (mobile)
++  + Max-height: 80vh
++  + Border-radius: 16px
++  + Padding: 32px
++  + Shadow: Large elevation
++  + Position: Center screen
++  + Animation: Slide up + fade in (300ms)
++
++HEADER:
++- Title: "Thêm thẻ mới vào deck"
++  + Font: Bold, 24px
++  + Color: Đen
++  + Icon: Flashcard icon bên trái (optional)
++  
++- Subtitle: "Deck: [Accommodation & Hotels]"
++  + Font: Regular, 14px
++  + Color: Grey
++  + Margin-top: 4px
++
++- Close button: "✕"
++  + Position: Top right
++  + Size: 32x32px
++  + Hover: Background grey circle
++
++---
++
++FORM INPUTS (4 fields chính):
++
++FIELD 1: TỪ VỰNG (English Word) *
++- Label: "Từ vựng tiếng Anh *"
++- Input type: Text
++- Placeholder: "VD: luggage, hotel, room..."
++- Background: #F9F9F9
++- Border: 1px solid #E0E0E0
++- Border-radius: 8px
++- Padding: 12px 16px
++- Font: 16px
++- Focus: Border xanh lá
++- Required: Yes
++- Auto-suggest: Dropdown từ library 5000+ (nếu có)
++- Icon: Dictionary icon (optional)
++
++FIELD 2: ĐỊNH NGHĨA (English Definition) *
++- Label: "Định nghĩa tiếng Anh *"
++- Input type: Textarea
++- Placeholder: "VD: Bags and suitcases used for traveling"
++- Rows: 3
++- Background: #F9F9F9
++- Border-radius: 8px
++- Max length: 200 characters
++- Character counter: "45/200" bottom right
++- Required: Yes
++- Auto-expand: Grow with content
++
++FIELD 3: PHIÊN ÂM IPA
++- Label: "Phiên âm IPA"
++- Input type: Text
++- Placeholder: "VD: /ˈlʌɡ.ɪdʒ/"
++- Background: #F9F9F9
++- Font: IPA font (Doulos SIL)
++- Optional: Not required
++- Help icon: "?" tooltip với IPA guide
++- Auto-fill: Nếu chọn từ library
++
++FIELD 4: NGHĨA TIẾNG VIỆT *
++- Label: "Nghĩa tiếng Việt *"
++- Input type: Text
++- Placeholder: "VD: Hành lý"
++- Background: #F9F9F9
++- Required: Yes
++- Multiple meanings: Separated by ";" or ","
++
++---
++
++FIELD 5: CÂU VÍ DỤ (Example Sentence)
++- Label: "Câu ví dụ"
++- Input type: Textarea
++- Placeholder: "VD: Please store your luggage in the overhead compartment"
++- Rows: 2
++- Background: #F9F9F9
++- Optional: Not required
++- Toggle: Checkbox "Thêm câu ví dụ"
++  + Unchecked: Field collapsed/hidden
++  + Checked: Field visible
++
++---
++
++ADVANCED OPTIONS (Collapsible section):
++- Toggle: "⌄ Tùy chọn nâng cao"
++- Expand to show:
++  + Word type: Dropdown (Noun, Verb, Adjective, etc.)
++  + Difficulty: Stars 1-5 rating
++  + Tags: Multi-select chips
++  + Image upload: Attach image to card
++  + Audio upload: Attach pronunciation audio
++
++---
++
++QUICK ACTIONS (Bottom của form):
++- AI Assist button: "✨ Tự động điền"
++  + Click: Auto-fill definition, IPA, example
++  + Uses AI to complete fields
++  + Background: Purple gradient
++  + Icon: Sparkle/magic wand
++
++- Dictionary lookup: "📖 Tra từ điển"
++  + Opens mini dictionary panel
++  + Search and select meaning
++  + Auto-import to form
++
++---
++
++VALIDATION:
++- Real-time validation
++- Required fields: Red asterisk (*)
++- Empty submit: Shake animation + error highlight
++- Error messages:
++  + "Vui lòng nhập từ vựng"
++  + "Định nghĩa quá ngắn (tối thiểu 10 ký tự)"
++  + "Từ này đã tồn tại trong deck"
++
++---
++
++ACTION BUTTONS (Modal footer):
++
++PRIMARY: "Thêm vào deck" (Add to deck)
++- Background: Xanh lá (#4CAF50)
++- Color: Trắng
++- Padding: 12px 32px
++- Border-radius: 24px
++- Font: Bold, 16px
++- Icon: Checkmark hoặc "+"
++- Hover: Background đậm hơn
++- Click: 
++  + Validate inputs
++  + Save card to deck
++  + Success toast: "Đã thêm thẻ mới!"
++  + Modal fade out
++  + Card counter tăng (7/20 -> 8/21)
++  + Continue studying
++- Loading state: Spinner + "Đang thêm..."
++
++SECONDARY: "Thêm & Tiếp tục nhập" (Add & Continue)
++- Background: Trắng
++- Border: 1px solid xanh lá
++- Color: Xanh lá
++- Padding: 12px 32px
++- Click:
++  + Save current card
++  + Clear form (keep modal open)
++  + Focus first input
++  + Success toast: "Đã thêm! Tiếp tục nhập thẻ mới"
++- Use case: Thêm nhiều thẻ liên tục
++
++TERTIARY: "Hủy" (Cancel)
++- Background: Transparent
++- Color: Grey
++- Padding: 12px 24px
++- Click:
++  + Confirm if form has data: "Bạn có chắc muốn hủy?"
++  + Close modal
++  + Return to study mode
++
++---
++
++KEYBOARD SHORTCUTS (Trong modal):
++- Ctrl/Cmd + Enter: Submit form (Thêm vào deck)
++- Ctrl/Cmd + Shift + Enter: Thêm & Tiếp tục nhập
++- Escape: Close modal (with confirmation)
++- Tab: Navigate between fields
++- Ctrl/Cmd + D: Toggle dictionary lookup
++
++---
++
++AFTER ADDING CARD:
++
++SUCCESS FEEDBACK:
++- Toast notification:
++  + Message: "✓ Đã thêm thẻ 'luggage' vào deck"
++  + Duration: 3 seconds
++  + Position: Top center
++  + Color: Green background
++  + Action: "Xem ngay" link (scroll to new card)
++
++DECK UPDATE:
++- Card counter update: "7/20" -> "8/21"
++- Progress bar recalculate
++- New card added to END of deck
++- Option: "Học thẻ mới ngay" button appears
++  + Click: Jump to newly added card
++  + Or: Continue current sequence
++
++CARD INDICATOR:
++- New cards marked with badge:
++  + "Mới" label
++  + Yellow/Gold dot
++  + Different card border color
++- Helps user identify self-added cards
++
++---
++
++QUICK ADD MODE (Alternative UI):
++
++INLINE QUICK ADD (Minimalist):
++- Instead of modal, show compact form BELOW current card
++- Slide down animation
++- Only essential fields:
++  + Word + Meaning (1 row)
++  + Quick "+" button to submit
++- Expand to full form: "Thêm chi tiết" link
++- Good for rapid card creation
++
++FLOATING ADD BUTTON:
++- Persistent button:
++  + Position: Bottom right corner (floating)
++  + Size: 56x56px
++  + Icon: "+" big and bold
++  + Shadow: Elevation 4
++  + Always visible (fixed position)
++  + Click: Open modal instantly
++  + Badge: Shows number of cards added this session "3"
++
++---
++
++STUDY MODE INTEGRATION:
++
++WHEN TO ADD CARDS (Use cases):
++1. Gặp từ mới trong lúc học -> Add immediately
++2. Từ liên quan muốn học thêm -> Add for context
++3. Từ đồng nghĩa/trái nghĩa -> Expand vocabulary
++4. Cá nhân hóa deck -> Add personal vocabulary
++
++CARD VISIBILITY:
++- Newly added cards:
++  + Option 1: Appear trong current study session
++  + Option 2: Saved for next review session
++  + User setting: "Study new cards immediately" toggle
++
++STATISTICS TRACKING:
++- Count cards added during study
++- Show in completion screen:
++  + "Bạn đã thêm 3 thẻ mới trong phiên học này"
++  + Option to review newly added cards
++  + Quiz includes new cards (optional setting)
++
++==============================================================================
++6. MAIN FLASHCARD AREA
++==============================================================================
++
++CONTAINER:
++- Max-width: 600-700px
++- Height: 400-500px (responsive)
++- Margin: 40px auto
++- Position: Center của màn hình
++- Perspective: 1000px (cho 3D flip effect)
++
++CARD STYLING:
++- Background: Trắng (#FFFFFF)
++- Border-radius: 16-20px
++- Shadow: Large, soft box-shadow (elevation 4-6)
++  + Example: 0 8px 24px rgba(0,0,0,0.12)
++- Padding: 48px 40px
++- Display: Flex, center align content
++- Min-height: 400px
++
++CARD CONTENT (Front side):
++- Từ vựng chính: "Package"
++  + Font: Bold, 48-64px
++  + Color: Đen (#000000)
++  + Text-align: Center
++  + Position: Vertical và horizontal center
++  + Letter-spacing: -0.5px
++  
++- Phiên âm IPA: "/pæk.ɪdʒ/"
++  + Font: Regular, 18-20px
++  + Color: Xám đậm (#666666)
++  + Text-align: Center
++  + Margin-top: 12px
++  + Font-family: "Doulos SIL" hoặc font hỗ trợ IPA
++
++AUDIO ICONS (Dưới từ vựng):
++- 2 icons: 🔊 US flag | 🔊 UK flag
++  + Size: 32-40px mỗi icon
++  + Gap: 16px giữa 2 icons
++  + Position: Center, dưới phiên âm
++  + Margin-top: 24px
++  + Interactive: Hover scale 1.1
++  + Click: Play pronunciation audio
++
++CARD FLIP ANIMATION:
++- Flip theo trục Y (horizontal flip)
++- Duration: 400-600ms
++- Easing: ease-in-out
++- Transform-style: preserve-3d
++- Backface-visibility: hidden
++
++CARD CONTENT (Back side):
++- Định nghĩa tiếng Anh + Nghĩa tiếng Việt + Ví dụ câu
++- Font: Regular, 18-20px
++- Color: Đen (#000000)
++- Text-align: Left hoặc Center
++- Line-height: 1.6-1.8
++- Padding: 32px
++
++==============================================================================
++7. BOTTOM CONTROLS (Action Buttons)
++==============================================================================
++
++LAYOUT:
++- Position: Dưới flashcard
++- Margin-top: 40px
++- Display: Flex, center align
++- Gap: 24px giữa các buttons
++
++BUTTON 1: "Trở lại" (Back/Previous)
++- Background: Trắng (#FFFFFF)
++- Border: 1px solid xám nhạt (#E0E0E0)
++- Color: Xám đậm (#333333)
++- Padding: 12px 32px
++- Border-radius: 24px (rounded-full)
++- Font: Medium, 16px
++- Icon: Arrow left (optional)
++- Hover: Background xám rất nhạt (#F9F9F9)
++- Width: ~150px
++
++BUTTON 2: "Tiếp" (Next/Continue)
++- Background: Xanh lá đậm (#4CAF50)
++- Border: None
++- Color: Trắng (#FFFFFF)
++- Padding: 12px 32px
++- Border-radius: 24px (rounded-full)
++- Font: Bold, 16px
++- Icon: Arrow right (optional)
++- Hover: Background xanh đậm hơn (#45A049)
++- Shadow: 0 2px 8px rgba(76,175,80,0.3)
++- Width: ~150px
++
++BUTTON STATES:
++- Active: Scale 0.98
++- Disabled: Opacity 0.5, cursor not-allowed
++- Focus: Outline visible cho keyboard navigation
++
++==============================================================================
++8. CARD FLIP TRIGGER
++==============================================================================
++- Click anywhere on card -> Flip
++- Keyboard: Spacebar hoặc Enter -> Flip
++- Touch: Tap anywhere on card -> Flip
++- Animation smooth, preserve-3d
++
++==============================================================================
++9. KEYBOARD SHORTCUTS
++==============================================================================
++- Arrow Left / Backspace: Previous card
++- Arrow Right / Spacebar: Next card
++- Enter / Spacebar: Flip card
++- Escape: Exit study mode
++- 1-5: Rate card (nếu có rating system)
++
++==============================================================================
++10. PROGRESS TRACKING
++==============================================================================
++
++PROGRESS INDICATORS:
++- Current card: "7" hoặc "7/10"
++- Progress bar: Visual representation
++- Percentage: Optional "70%" text
++
++CARD STATES:
++- Not studied: Xám
++- Studying: Xanh lá
++- Completed: Xanh lá đậm
++- Marked: Yellow/Gold (optional star icon)
++
++==============================================================================
++11. ADDITIONAL FEATURES (Optional Icons/Buttons)
++==============================================================================
++
++ON CARD (Top corners):
++- Star/Bookmark icon (Top right)
++  + Toggle marked/favorite
++  + Color: Yellow gold khi active
++  + Size: 24x24px
++  
++- Speaker icon (Top left hoặc near word)
++  + Play audio pronunciation
++  + Auto-play option
++  + Size: 24x24px
++
++CARD MENU (3 dots):
++- Report error
++- Edit card
++- Remove from deck
++- Add to favorites
++- Share card
++
++==============================================================================
++12. SWIPE GESTURES (Mobile/Touch)
++==============================================================================
++- Swipe left: Next card
++- Swipe right: Previous card
++- Tap card: Flip
++- Swipe down: Exit (optional)
++
++VISUAL FEEDBACK:
++- Card edge glow khi swipe
++- Haptic feedback khi flip (mobile)
++- Smooth transition animations
++
++==============================================================================
++13. COMPLETION STATE & FINAL QUIZ
++==============================================================================
++
++WHEN FINISHED ALL CARDS (Học xong tất cả thẻ):
++
++STEP 1: COMPLETION SCREEN
++- Confetti animation hoặc success icon
++- Message: "Xuất sắc! Bạn đã học xong [số] thẻ"
++- Statistics summary:
++  + Thời gian học: "15 phút 30 giây"
++  + Số thẻ đã học: "20/20 thẻ"
++  + Thẻ đã thêm mới: "3 thẻ" (nếu có thêm trong lúc học)
++  
++STEP 2: FINAL QUIZ PROMPT (QUAN TRỌNG)
++- Overlay modal hoặc full screen transition
++- Icon: Quiz/Test icon (clipboard, checkmark)
++- Heading: "Sẵn sàng kiểm tra kiến thức?"
++- Subtext: "Làm bài quiz cuối để đánh giá mức độ ghi nhớ của bạn"
++- Preview info:
++  + "20 câu hỏi"
++  + "Thời gian: ~10 phút"
++  + "Yêu cầu đạt: 70% để hoàn thành"
++
++ACTION BUTTONS:
++1. "Bắt đầu Quiz" (Primary - Xanh lá đậm, large, prominent)
++   - Background: #4CAF50
++   - Icon: Arrow right hoặc play icon
++   - Size: Large, padding 16px 48px
++   - Position: Center, bottom of modal
++   
++2. "Học lại trước" (Secondary - Outline)
++   - Border: 1px solid grey
++   - Background: Transparent
++   - Text: Grey
++   - Size: Medium
++   - Position: Bên trái nút "Bắt đầu Quiz"
++   
++3. "Bỏ qua" (Tertiary - Text only)
++   - No background, no border
++   - Text: Grey, underline on hover
++   - Size: Small
++   - Position: Bottom center, dưới buttons
++
++TRANSITION TO QUIZ:
++- Smooth fade out study mode
++- Loading screen: "Đang chuẩn bị câu hỏi..."
++- Fade in quiz interface
++
++---
++
++FINAL QUIZ INTERFACE:
++
++QUIZ HEADER:
++- Title: "Final Quiz - [Tên deck]"
++  + VD: "Final Quiz - Accommodation & Hotels"
++- Progress indicator: "Câu 5/20"
++- Progress bar: Visual representation
++- Timer (optional): "8:30" countdown
++- Exit button: "✕" với confirm dialog
++
++QUIZ QUESTION CARD:
++- Background: Trắng, shadow lớn
++- Border-radius: 16px
++- Padding: 40px
++- Max-width: 700px
++- Center align
++
++QUESTION TYPES:
++
++TYPE 1: MULTIPLE CHOICE (Chọn nghĩa đúng)
++- Question: "What does 'package' mean?"
++- 4 options (A, B, C, D):
++  [ ] Bưu kiện ✓ (correct)
++  [ ] Gói hàng
++  [ ] Bao bì
++  [ ] Kiện hàng
++- Radio buttons hoặc clickable cards
++- Highlight selected: Border xanh lá
++
++TYPE 2: FILL IN THE BLANK (Điền từ)
++- Sentence: "The ____ was wrapped in brown paper"
++- Input field: Text input
++- Hint button: "Gợi ý" (show first letter)
++- Placeholder: "Type your answer..."
++
++TYPE 3: MATCHING (Ghép cặp)
++- Left column: English words
++- Right column: Vietnamese meanings
++- Drag and drop hoặc click to connect
++- Visual lines connecting pairs
++
++TYPE 4: PRONUNCIATION (Chọn phát âm đúng)
++- Word: "package"
++- 4 pronunciation options:
++  [ ] /pæk.ɪdʒ/ ✓
++  [ ] /peɪk.ɪdʒ/
++  [ ] /pæk.aɪdʒ/
++  [ ] /pɑːk.ɪdʒ/
++- Audio playback cho mỗi option
++
++TYPE 5: TRUE/FALSE (Đúng/Sai)
++- Statement: "A 'bed' is a piece of furniture for sleeping"
++- 2 buttons: "Đúng ✓" | "Sai ✗"
++
++ACTION BUTTONS (Bottom of question):
++- "Kiểm tra" (Check answer - Primary green)
++  + Appears after user selects answer
++  + Click -> Show correct/incorrect feedback
++  
++- "Tiếp tục" (Next question - Primary green)
++  + Appears after checking answer
++  + Click -> Next question với animation
++
++- "Bỏ qua" (Skip - Secondary grey)
++  + Allows skipping difficult questions
++  + Marked for review later
++
++ANSWER FEEDBACK:
++- Correct answer:
++  + Green background flash
++  + Checkmark icon ✓
++  + Sound effect (optional)
++  + Message: "Chính xác! 🎉"
++  + Show correct answer highlighted
++  
++- Incorrect answer:
++  + Red background flash
++  + X icon ✗
++  + Sound effect (optional)
++  + Message: "Chưa đúng. Đáp án là: [correct answer]"
++  + Explanation (optional): "Package /pæk.ɪdʒ/ nghĩa là bưu kiện"
++
++QUIZ FOOTER:
++- Question navigation dots
++  + 20 small circles
++  + Green: Answered correctly
++  + Red: Answered incorrectly
++  + Grey: Not answered
++  + Yellow: Skipped
++  + Click to jump to question
++
++---
++
++FINAL QUIZ RESULTS SCREEN:
++
++LAYOUT:
++- Full screen overlay
++- Background: Gradient hoặc solid color
++- Confetti animation if passed
++
++SCORE DISPLAY:
++- Large circular progress
++  + Percentage: "85%"
++  + Font: Bold, 72px
++  + Color: Green if passed, Orange if close, Red if failed
++  + Animation: Count up from 0%
++
++PASS/FAIL STATUS:
++- Badge/Icon:
++  + ✓ "Xuất sắc!" if >90%
++  + ✓ "Đạt yêu cầu!" if 70-90%
++  + ✗ "Cần cố gắng thêm" if <70%
++- Message personalized based on score
++
++DETAILED STATISTICS:
++- Correct answers: "17/20 câu"
++- Accuracy: "85%"
++- Time taken: "9 phút 15 giây"
++- Strongest area: "Vocabulary recognition"
++- Need improvement: "Pronunciation"
++
++QUESTION REVIEW:
++- List of all questions with status
++- Filter: All | Correct | Incorrect | Skipped
++- Click to review individual questions
++- Show correct answer and explanation
++
++ACTION BUTTONS:
++1. "Học lại những câu sai" (Review incorrect)
++   - Creates mini-deck with only incorrect cards
++   - Returns to study mode
++   
++2. "Làm lại Quiz" (Retake quiz)
++   - Restart quiz with same questions
++   - Shuffled order
++   
++3. "Tiếp tục học" (Continue learning)
++   - Return to flashcard overview
++   - Mark deck as completed (if passed)
++   
++4. "Chia sẻ kết quả" (Share results)
++   - Social media share
++   - Screenshot of score
++
++PROGRESS TRACKING:
++- Save quiz results to user profile
++- Show improvement over time
++- Unlock achievements:
++  + "Perfect Score" - 100%
++  + "First Try Success" - Pass on first attempt
++  + "Speed Demon" - Complete in under 5 min
++  + "Persistent" - Pass after 3+ attempts
++
++---
++
++QUIZ FEATURES & SETTINGS:
++
++BEFORE STARTING QUIZ:
++- Settings modal:
++  [ ] Shuffle questions
++  [ ] Enable timer (10/15/20 minutes)
++  [ ] Show hints
++  [ ] Play pronunciation audio
++  [ ] Strict mode (no skip allowed)
++
++DURING QUIZ:
++- Pause button: Save progress and resume later
++- Help button: Show hint (cost 1 point)
++- Flag question: Mark for later review
++- Progress auto-save every question
++
++ADAPTIVE DIFFICULTY:
++- Easy mode: Multiple choice only, 4 options
++- Medium mode: Mix of question types
++- Hard mode: Fill in blank, no hints, stricter time
++
++QUIZ ANALYTICS:
++- Time per question average
++- Accuracy by question type
++- Common mistakes
++- Suggested focus areas
++
++==============================================================================
++14. RESPONSIVE DESIGN
++==============================================================================
++
++DESKTOP (1200px+):
++- Card width: 600-700px
++- Card height: 400-500px
++- Font sizes: As specified above
++- Buttons: ~150px width each
++
++TABLET (768px - 1199px):
++- Card width: 500-600px
++- Card height: 350-450px
++- Font sizes: 10-15% smaller
++- Buttons: ~130px width
++- Progress bar: 50-60% width
++
++MOBILE (< 768px):
++- Card width: 90% của viewport
++- Card height: Auto, min 300px
++- Font sizes: 
++  + Word: 36-48px
++  + IPA: 16px
++  + Definition: 16px
++- Buttons: Full width stacked hoặc 45% width each
++- Progress bar: 70% width
++- Padding: 24px
++
++==============================================================================
++15. DARK MODE SUPPORT (Optional)
++==============================================================================
++- Card background: #1E1E1E hoặc #2D2D2D
++- Text: #FFFFFF hoặc #F5F5F5
++- Progress track: #404040
++- Progress fill: Giữ nguyên xanh lá #4CAF50
++- Shadows: Lighter, với rgba(255,255,255,0.1)
++
++==============================================================================
++16. LOADING & ERROR STATES
++==============================================================================
++
++LOADING:
++- Skeleton screen cho card
++- Spinner ở center
++- Text: "Đang tải..."
++- Background: Xám nhạt shimmer effect
++
++ERROR:
++- Icon: Warning hoặc error icon
++- Message: "Không thể tải flashcard. Vui lòng thử lại."
++- Retry button
++- Support link
++
++NO CARDS:
++- Empty state illustration
++- Text: "Không có thẻ nào trong deck này"
++- Button: "Thêm thẻ mới" hoặc "Quay lại"
++
++==============================================================================
++17. ACCESSIBILITY
++==============================================================================
++- ARIA labels cho tất cả buttons và icons
++- Keyboard navigation: Tab index logical
++- Focus visible: Outline rõ ràng
++- Screen reader: Announce card number, word, definition
++- High contrast mode support
++- Font size adjustable
++- Reduce motion option (disable flip animation)
++
++==============================================================================
++18. PERFORMANCE
++==============================================================================
++- Preload next 2-3 cards
++- Lazy load images/audio
++- Cache pronunciation audio
++- Smooth 60fps animations
++- Debounce rapid button clicks
++
++==============================================================================
++19. ANIMATIONS & TRANSITIONS
++==============================================================================
++
++CARD FLIP:
++- Transform: rotateY(180deg)
++- Duration: 400ms
++- Easing: cubic-bezier(0.4, 0, 0.2, 1)
++
++CARD CHANGE:
++- Slide animation: translateX(-100%) hoặc fade
++- Duration: 300ms
++- Easing: ease-in-out
++
++BUTTON PRESS:
++- Scale: 0.98
++- Duration: 100ms
++- Shadow reduction
++
++PROGRESS BAR:
++- Width transition: 300ms
++- Easing: ease-out
++
++==============================================================================
++20. AUDIO FEATURES
++==============================================================================
++- Auto-play pronunciation (toggle on/off)
++- Volume control
++- Speed control (0.5x, 1x, 1.5x)
++- Loop current card audio
++- US vs UK pronunciation toggle
++
++==============================================================================
++21. STUDY MODES (Variations)
++==============================================================================
++
++FLASH MODE (Current):
++- Show word -> Flip -> Show definition
++- Manual navigation
++
++QUIZ MODE:
++- Multiple choice
++- Type answer
++- True/False
++
++AUTO-PLAY MODE:
++- Tự động chuyển card sau X giây
++- Adjustable timer
++
++RANDOM MODE:
++- Shuffle cards order
++- Prevent sequential memorization
++
++SPACED REPETITION:
++- Algorithm-based review
++- Priority cards need review
++- Optimal timing
++
++==============================================================================
++22. COLORS & THEMING
++==============================================================================
++- Primary Green: #4CAF50
++- Card background: #FFFFFF
++- Text primary: #000000
++- Text secondary: #666666
++- Border: #E0E0E0
++- Progress track: #E0E0E0
++- Progress fill: #4CAF50
++- Shadow: rgba(0,0,0,0.12)
++- Hover: #F9F9F9
++
++==============================================================================
++23. TYPOGRAPHY
++==============================================================================
++- Flashcard word: Bold 600-700, 48-64px
++- IPA: Regular 400, 18-20px, IPA font
++- Definition: Regular 400, 18-20px
++- Buttons: Medium 500, 16px
++- Progress number: Medium 500, 14-16px
++- System font: Inter, SF Pro, Roboto
++
++==============================================================================
++24. SPACING
++==============================================================================
++- Container padding: 40px (desktop), 20px (mobile)
++- Card padding: 48px (desktop), 24px (mobile)
++- Button gap: 24px
++- Margin between elements: 16-24px
++- Progress bar height: 6-8px
+diff --git a/backend/prisma/schema.prisma b/backend/prisma/schema.prisma
+index 44510a9..1dd6b86 100644
+--- a/backend/prisma/schema.prisma
++++ b/backend/prisma/schema.prisma
+@@ -30,8 +30,9 @@ model Users {
+   quiz_wrong_words        QuizWrongWords[]
+   writing_submissions     WritingSubmissions[]
+   user_stats              UserStats?
+-  user_goals              UserGoals[] 
++  user_goals              UserGoals[]
+   user_activity_logs      UserActivityLog[]
++  user_tutorial_progress  UserTutorialProgress[]
+ }
+ 
+ model Theme {
+@@ -125,14 +126,18 @@ model Quizzes {
+   user_id         Int
+   type            QuizType
+   context         QuizContext @default(general)
++  theme_tag       String?
+   questions_json  Json
+   answers_json    Json
+   score           Float
+   is_passed       Boolean     @default(false)
+   completed_at    DateTime    @default(now())
+-  
++
+   lesson_id       Int?
+-  lesson          Lesson?     @relation(fields: [lesson_id], references: [id])  
++  lesson          Lesson?     @relation(fields: [lesson_id], references: [id])
++
++  flashcard_set_id Int?
++  flashcard_set    UserFlashcardSets? @relation(fields: [flashcard_set_id], references: [id])
+ 
+   user            Users       @relation(fields: [user_id], references: [id], onDelete: Cascade)
+   quiz_wrong_words QuizWrongWords[]
+@@ -203,11 +208,19 @@ model UserFlashcardSets {
+   id                   Int                  @id @default(autoincrement())
+   user_id              Int
+   set_name             String
++  description          String?
++  background_color     String               @default("#C8CC77")
++  icon                 String?
++  width_size           String               @default("medium")
++  height_custom        Int?
++  theme_tag            String?
++  last_studied_at      DateTime?
+   created_at           DateTime             @default(now())
++  updated_at           DateTime             @updatedAt
+ 
+   user                 Users                @relation(fields: [user_id], references: [id], onDelete: Cascade)
+   user_flashcard_cards UserFlashcardCards[]
+-  user                 Users                @relation(fields: [user_id], references: [id], onDelete: Cascade)
++  quizzes              Quizzes[]
+ }
+ 
+ model UserFlashcardCards {
+@@ -221,24 +234,6 @@ model UserFlashcardCards {
+   @@id([set_id, vocab_id])
+ }
+ 
+-model Quizzes {
+-  id                 Int       @id @default(autoincrement())
+-  user_id            Int
+-  theme              String?
+-  type               QuizType
+-  context            QuizContext  @default(general)
+-  questions_json     Json
+-  answers_json       Json
+-  score              Float
+-  is_passed          Boolean   @default(false)
+-  completed_at       DateTime  @default(now())
+-  lesson_id          Int?      // Thêm: FK liên kết lesson (nullable)
+-  lesson             Lesson?   @relation(fields: [lesson_id], references: [id]) // Thêm: Quan hệ ngược
+-
+-  user               Users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+-  quiz_wrong_words   QuizWrongWords[]
+-}
+-
+ model QuizWrongWords {
+   user_id Int
+   quiz_id Int
+@@ -264,21 +259,6 @@ model IeltsRepository {
+   writing_submissions WritingSubmissions[]
+ }
+ 
+-model WritingSubmissions {
+-  id                         Int       @id @default(autoincrement())
+-  user_id                    Int
+-  topic_id                   Int?
+-  content                    String
+-  grammar_feedback_json      Json?
+-  format_feedback            String?
+-  paraphrasing_suggestions   Json?
+-  band_score                 Float?
+-  completed_at               DateTime  @default(now())
+-
+-  user                       Users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+-  topics                     IeltsRepository?   @relation(fields: [topic_id], references: [id])
+-}
+-
+ model TutorialContent {
+   id                     Int                  @id @default(autoincrement())
+   type                   WritingType
+diff --git a/backend/prisma/seed_flashcards.ts b/backend/prisma/seed_flashcards.ts
+new file mode 100644
+index 0000000..1fb1161
+--- /dev/null
++++ b/backend/prisma/seed_flashcards.ts
+@@ -0,0 +1,308 @@
++// backend/prisma/seed_flashcards.ts
++// Script để seed 20 flashcard sets với customization và vocab data có sẵn
++
++import { PrismaClient } from '@prisma/client';
++import * as dotenv from 'dotenv';
++import * as path from 'path';
++
++dotenv.config({ path: path.resolve(__dirname, '../.env') });
++
++const prisma = new PrismaClient();
++
++// 20 flashcard sets với customization theo design specs
++const FLASHCARD_SETS = [
++  {
++    set_name: 'Art and Culture',
++    description: 'Essential vocabulary for art galleries, museums, and cultural events',
++    background_color: '#E8D68A',
++    icon: '🎨',
++    width_size: 'large',
++    height_custom: 300,
++    theme_tag: 'Art',
++  },
++  {
++    set_name: 'Animals - Pets',
++    description: 'Common pets and domestic animals vocabulary',
++    background_color: '#2C4356',
++    icon: '🐾',
++    width_size: 'small',
++    height_custom: 145,
++    theme_tag: 'Animals',
++  },
++  {
++    set_name: 'Emotions & Personality',
++    description: 'Express feelings and describe character traits',
++    background_color: '#A5BFB0',
++    icon: '😊',
++    width_size: 'medium',
++    height_custom: 200,
++    theme_tag: 'Emotions',
++  },
++  {
++    set_name: 'Accommodation & Hotels',
++    description: 'Vocabulary for booking hotels and describing living spaces',
++    background_color: '#C8CC77',
++    icon: '🏨',
++    width_size: 'small',
++    height_custom: 145,
++    theme_tag: 'Travel',
++  },
++  {
++    set_name: 'Education & Learning',
++    description: 'Academic vocabulary and educational terms',
++    background_color: '#D4D18F',
++    icon: '📚',
++    width_size: 'large',
++    height_custom: 300,
++    theme_tag: 'Education',
++  },
++  {
++    set_name: 'Animals - Farm',
++    description: 'Farm animals and agricultural vocabulary',
++    background_color: '#2C4356',
++    icon: '🐄',
++    width_size: 'medium',
++    height_custom: 200,
++    theme_tag: 'Animals',
++  },
++  {
++    set_name: 'Electronics',
++    description: 'Modern gadgets and electronic devices',
++    background_color: '#8FB5B0',
++    icon: '💻',
++    width_size: 'medium',
++    height_custom: 200,
++    theme_tag: 'Technology',
++  },
++  {
++    set_name: 'Food & Cooking',
++    description: 'Kitchen vocabulary and cooking methods',
++    background_color: '#E8D68A',
++    icon: '🍳',
++    width_size: 'medium',
++    height_custom: 220,
++    theme_tag: 'Food',
++  },
++  {
++    set_name: 'Transportation',
++    description: 'Vehicles and travel methods',
++    background_color: '#4CAF50',
++    icon: '🚗',
++    width_size: 'small',
++    height_custom: 150,
++    theme_tag: 'Travel',
++  },
++  {
++    set_name: 'Weather & Nature',
++    description: 'Climate conditions and natural phenomena',
++    background_color: '#87CEEB',
++    icon: '🌤️',
++    width_size: 'large',
++    height_custom: 280,
++    theme_tag: 'Nature',
++  },
++  {
++    set_name: 'Health & Medicine',
++    description: 'Medical terms and health-related vocabulary',
++    background_color: '#FFB6C1',
++    icon: '⚕️',
++    width_size: 'medium',
++    height_custom: 190,
++    theme_tag: 'Health',
++  },
++  {
++    set_name: 'Business & Work',
++    description: 'Professional terminology and workplace vocabulary',
++    background_color: '#D4AF37',
++    icon: '💼',
++    width_size: 'large',
++    height_custom: 260,
++    theme_tag: 'Work',
++  },
++  {
++    set_name: 'Sports & Fitness',
++    description: 'Athletic activities and exercise vocabulary',
++    background_color: '#FF6347',
++    icon: '⚽',
++    width_size: 'small',
++    height_custom: 160,
++    theme_tag: 'Sports',
++  },
++  {
++    set_name: 'Music & Entertainment',
++    description: 'Musical instruments and entertainment industry',
++    background_color: '#9370DB',
++    icon: '🎵',
++    width_size: 'medium',
++    height_custom: 210,
++    theme_tag: 'Entertainment',
++  },
++  {
++    set_name: 'Shopping & Fashion',
++    description: 'Clothing, accessories, and shopping vocabulary',
++    background_color: '#FF69B4',
++    icon: '👗',
++    width_size: 'medium',
++    height_custom: 195,
++    theme_tag: 'Fashion',
++  },
++  {
++    set_name: 'Technology & Internet',
++    description: 'Digital world and online terminology',
++    background_color: '#4169E1',
++    icon: '🌐',
++    width_size: 'large',
++    height_custom: 270,
++    theme_tag: 'Technology',
++  },
++  {
++    set_name: 'Family & Relationships',
++    description: 'Family members and relationship terms',
++    background_color: '#FFA07A',
++    icon: '👨‍👩‍👧‍👦',
++    width_size: 'small',
++    height_custom: 155,
++    theme_tag: 'Family',
++  },
++  {
++    set_name: 'Time & Dates',
++    description: 'Temporal expressions and calendar vocabulary',
++    background_color: '#20B2AA',
++    icon: '⏰',
++    width_size: 'medium',
++    height_custom: 185,
++    theme_tag: 'Time',
++  },
++  {
++    set_name: 'Home & Furniture',
++    description: 'Household items and interior design',
++    background_color: '#DEB887',
++    icon: '🛋️',
++    width_size: 'large',
++    height_custom: 290,
++    theme_tag: 'Home',
++  },
++  {
++    set_name: 'Numbers & Quantities',
++    description: 'Numerical expressions and measurements',
++    background_color: '#B0C4DE',
++    icon: '🔢',
++    width_size: 'small',
++    height_custom: 140,
++    theme_tag: 'Numbers',
++  },
++];
++
++async function seedFlashcards() {
++  try {
++    console.log('🎴 BẮT ĐẦU SEED FLASHCARD SETS...\n');
++
++    // 1. Tìm user để gán flashcards (hoặc tạo demo user)
++    let demoUser = await prisma.users.findFirst({
++      where: { email: 'demo@eduaion.com' },
++    });
++
++    if (!demoUser) {
++      console.log('📝 Tạo demo user...');
++      demoUser = await prisma.users.create({
++        data: {
++          email: 'demo@eduaion.com',
++          username: 'Demo User',
++          level: 'Intermediate',
++          isVerified: true,
++        },
++      });
++      console.log(`✅ Demo user created: ${demoUser.email}\n`);
++    }
++
++    // 2. Lấy tất cả vocab có sẵn
++    const allVocabs = await prisma.vocab.findMany({
++      include: {
++        theme: true,
++        lesson: true,
++      },
++    });
++
++    console.log(`📚 Tìm thấy ${allVocabs.length} vocab trong database\n`);
++
++    // 3. Tạo 20 flashcard sets
++    for (let i = 0; i < FLASHCARD_SETS.length; i++) {
++      const setConfig = FLASHCARD_SETS[i];
++
++      console.log(`🎯 Đang tạo set ${i + 1}/20: ${setConfig.set_name}`);
++
++      // Tạo flashcard set
++      const flashcardSet = await prisma.userFlashcardSets.create({
++        data: {
++          user_id: demoUser.id,
++          set_name: setConfig.set_name,
++          description: setConfig.description,
++          background_color: setConfig.background_color,
++          icon: setConfig.icon,
++          width_size: setConfig.width_size,
++          height_custom: setConfig.height_custom,
++          theme_tag: setConfig.theme_tag,
++        },
++      });
++
++      // Tìm vocab phù hợp với theme tag (nếu có theme match)
++      // Hoặc random vocab nếu không match
++      let matchingVocabs = allVocabs.filter((vocab) =>
++        vocab.theme?.name?.toLowerCase().includes(setConfig.theme_tag.toLowerCase())
++      );
++
++      // Nếu không có vocab match, lấy random
++      if (matchingVocabs.length === 0) {
++        matchingVocabs = allVocabs;
++      }
++
++      // Lấy 10-24 vocab ngẫu nhiên (như trong design specs)
++      const cardCount = [12, 20, 20, 10, 20, 24, 10, 15, 18, 22, 14, 16, 12, 19, 17, 21, 13, 11, 23, 8][i];
++      const shuffled = matchingVocabs.sort(() => 0.5 - Math.random());
++      const selectedVocabs = shuffled.slice(0, Math.min(cardCount, matchingVocabs.length));
++
++      // Tạo flashcard cards
++      for (const vocab of selectedVocabs) {
++        await prisma.userFlashcardCards.create({
++          data: {
++            set_id: flashcardSet.id,
++            vocab_id: vocab.id,
++            status: 'new',
++          },
++        });
++      }
++
++      console.log(`   ✓ Đã thêm ${selectedVocabs.length} cards vào set\n`);
++    }
++
++    console.log('✅ SEED FLASHCARDS HOÀN TẤT!');
++    console.log(`📊 Tổng cộng: ${FLASHCARD_SETS.length} flashcard sets\n`);
++
++    // Hiển thị summary
++    const summary = await prisma.userFlashcardSets.findMany({
++      include: {
++        _count: {
++          select: { user_flashcard_cards: true },
++        },
++      },
++    });
++
++    console.log('📋 SUMMARY:');
++    summary.forEach((set, idx) => {
++      console.log(
++        `   ${idx + 1}. ${set.set_name} - ${set._count.user_flashcard_cards} cards (${set.background_color})`
++      );
++    });
++  } catch (error) {
++    console.error('❌ LỖI SEED FLASHCARDS:', error);
++    throw error;
++  } finally {
++    await prisma.$disconnect();
++  }
++}
++
++// Run seed
++seedFlashcards().catch((error) => {
++  console.error('SEED THẤT BẠI:', error);
++  process.exit(1);
++});
+diff --git a/backend/src/app.ts b/backend/src/app.ts
+index 8aa7432..7cfaac5 100644
+--- a/backend/src/app.ts
++++ b/backend/src/app.ts
+@@ -15,22 +15,41 @@ import StatsRoute from './routes/StatsRoute';
+ import VocabRoute from './routes/VocabRoute';
+ import WritingRoute from './routes/WritingRoute';
+ import CloudinaryRoute from './routes/CloudinaryRoute';
++import FlashcardRoute from './routes/FlashcardRoute';
+ 
+ dotenv.config();
+ 
+ const app = express();
+-const port = process.env.PORT || 4000;
++const port = process.env.PORT || 4001;
+ 
+-// Cấu hình CORS
+-const corsOptions = {
+-    // Cho phép request từ địa chỉ Frontend của bạn (localhost:3000)
+-    origin: 'http://localhost:3000',
+-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE', // Cho phép các phương thức này
+-    credentials: true, // Cho phép gửi cookies (nếu cần) và headers Authorization
+-    optionsSuccessStatus: 204
+-};
++// Cấu hình CORS - Cho phép frontend
++const allowedOrigins = [
++    'http://localhost:3000',
++    'http://localhost:3001',
++    'http://127.0.0.1:3000',
++    'http://127.0.0.1:3001'
++];
+ 
+-app.use(cors(corsOptions)); // Kích hoạt middleware CORS
++app.use(cors({
++    origin: function (origin, callback) {
++        // Cho phép requests không có origin (như Postman, mobile apps)
++        if (!origin) return callback(null, true);
++        
++        // Kiểm tra origin có trong whitelist không
++        if (allowedOrigins.indexOf(origin) !== -1) {
++            callback(null, true);
++        } else {
++            // Trong development, log ra để debug
++            console.log('CORS blocked origin:', origin);
++            callback(null, true); // Tạm thời vẫn cho phép trong development
++        }
++    },
++    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
++    credentials: true,
++    optionsSuccessStatus: 204,
++    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'x-csrf-token'],
++    exposedHeaders: ['Set-Cookie']
++}));
+ 
+ // Middleware cần thiết
+ app.use(express.json()); // Cho phép Express đọc JSON body từ request
+@@ -58,6 +77,7 @@ app.use('/api/stats', StatsRoute);
+ app.use('/api/vocab', VocabRoute);
+ app.use('/api/writing', WritingRoute);
+ app.use('/api/cloudinary', CloudinaryRoute);
++app.use('/api/flashcards', FlashcardRoute);
+ 
+ // 1. GLOBAL ERROR HANDLER - BẮT BUỘC PHẢI Ở ĐÂY (TRƯỚC 404)
+ // Khi một lỗi được next() (ví dụ: lỗi 401 từ protect), nó sẽ nhảy vào đây
+diff --git a/backend/src/controllers/FlashcardController.ts b/backend/src/controllers/FlashcardController.ts
+new file mode 100644
+index 0000000..b4d51a1
+--- /dev/null
++++ b/backend/src/controllers/FlashcardController.ts
+@@ -0,0 +1,314 @@
++// backend/src/controllers/FlashcardController.ts
++// Controller for flashcard endpoints
++
++import { Request, Response, NextFunction } from 'express';
++import FlashcardService from '../services/FlashcardService';
++import AppError from '../utils/AppError';
++import { Status } from '@prisma/client';
++
++class FlashcardController {
++  /**
++   * GET /api/flashcards/sets
++   * Lấy tất cả flashcard sets của user
++   */
++  async getUserSets(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const sets = await FlashcardService.getUserFlashcardSets(parseInt(userId));
++
++      res.status(200).json({
++        success: true,
++        data: sets,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * GET /api/flashcards/sets/:id
++   * Lấy chi tiết 1 flashcard set
++   */
++  async getSetById(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.id);
++      if (isNaN(setId)) {
++        throw new AppError('Invalid set ID', 400);
++      }
++
++      const set = await FlashcardService.getFlashcardSetById(setId, parseInt(userId));
++
++      res.status(200).json({
++        success: true,
++        data: set,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * POST /api/flashcards/sets
++   * Tạo flashcard set mới
++   */
++  async createSet(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const { set_name, description, background_color, icon, width_size, height_custom, theme_tag } = req.body;
++
++      if (!set_name) {
++        throw new AppError('Set name is required', 400);
++      }
++
++      const newSet = await FlashcardService.createFlashcardSet(parseInt(userId), {
++        set_name,
++        description,
++        background_color,
++        icon,
++        width_size,
++        height_custom,
++        theme_tag,
++      });
++
++      res.status(201).json({
++        success: true,
++        data: newSet,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * PUT /api/flashcards/sets/:id
++   * Update flashcard set
++   */
++  async updateSet(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.id);
++      if (isNaN(setId)) {
++        throw new AppError('Invalid set ID', 400);
++      }
++
++      const { set_name, description, background_color, icon, width_size, height_custom, theme_tag } = req.body;
++
++      const updatedSet = await FlashcardService.updateFlashcardSet(setId, parseInt(userId), {
++        set_name,
++        description,
++        background_color,
++        icon,
++        width_size,
++        height_custom,
++        theme_tag,
++      });
++
++      res.status(200).json({
++        success: true,
++        data: updatedSet,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * DELETE /api/flashcards/sets/:id
++   * Xóa flashcard set
++   */
++  async deleteSet(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.id);
++      if (isNaN(setId)) {
++        throw new AppError('Invalid set ID', 400);
++      }
++
++      const result = await FlashcardService.deleteFlashcardSet(setId, parseInt(userId));
++
++      res.status(200).json({
++        success: true,
++        message: result.message,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * POST /api/flashcards/sets/:setId/cards
++   * Thêm card vào set
++   */
++  async addCard(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.setId);
++      if (isNaN(setId)) {
++        throw new AppError('Invalid set ID', 400);
++      }
++
++      const { vocab_id, status } = req.body;
++
++      if (!vocab_id) {
++        throw new AppError('Vocab ID is required', 400);
++      }
++
++      const newCard = await FlashcardService.addCardToSet(setId, parseInt(userId), {
++        vocab_id: parseInt(vocab_id),
++        status: status as Status,
++      });
++
++      res.status(201).json({
++        success: true,
++        data: newCard,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * DELETE /api/flashcards/sets/:setId/cards/:vocabId
++   * Xóa card khỏi set
++   */
++  async removeCard(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.setId);
++      const vocabId = parseInt(req.params.vocabId);
++
++      if (isNaN(setId) || isNaN(vocabId)) {
++        throw new AppError('Invalid set ID or vocab ID', 400);
++      }
++
++      const result = await FlashcardService.removeCardFromSet(setId, vocabId, parseInt(userId));
++
++      res.status(200).json({
++        success: true,
++        message: result.message,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * PUT /api/flashcards/sets/:setId/cards/:vocabId
++   * Update card status
++   */
++  async updateCardStatus(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.setId);
++      const vocabId = parseInt(req.params.vocabId);
++
++      if (isNaN(setId) || isNaN(vocabId)) {
++        throw new AppError('Invalid set ID or vocab ID', 400);
++      }
++
++      const { status } = req.body;
++
++      if (!status || !['new', 'learned', 'review', 'mastered'].includes(status)) {
++        throw new AppError('Valid status is required (new, learned, review, mastered)', 400);
++      }
++
++      const updatedCard = await FlashcardService.updateCardStatus(setId, vocabId, parseInt(userId), status as Status);
++
++      res.status(200).json({
++        success: true,
++        data: updatedCard,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * PUT /api/flashcards/sets/:setId/study
++   * Update study progress
++   */
++  async updateStudyProgress(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.setId);
++      if (isNaN(setId)) {
++        throw new AppError('Invalid set ID', 400);
++      }
++
++      const updatedSet = await FlashcardService.updateStudyProgress(setId, parseInt(userId));
++
++      res.status(200).json({
++        success: true,
++        data: updatedSet,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++
++  /**
++   * GET /api/flashcards/sets/:setId/quiz
++   * Get quiz for flashcard set
++   */
++  async getQuizForSet(req: Request, res: Response, next: NextFunction) {
++    try {
++      const userId = req.user?.userId;
++      if (!userId) {
++        throw new AppError('User not authenticated', 401);
++      }
++
++      const setId = parseInt(req.params.setId);
++      if (isNaN(setId)) {
++        throw new AppError('Invalid set ID', 400);
++      }
++
++      const quizData = await FlashcardService.getQuizForSet(setId, parseInt(userId));
++
++      res.status(200).json({
++        success: true,
++        data: quizData,
++      });
++    } catch (error) {
++      next(error);
++    }
++  }
++}
++
++export default new FlashcardController();
+diff --git a/backend/src/controllers/VocabController.ts b/backend/src/controllers/VocabController.ts
+index 29aaaef..a66da4d 100644
+--- a/backend/src/controllers/VocabController.ts
++++ b/backend/src/controllers/VocabController.ts
+@@ -153,4 +153,36 @@ export const checkAndCompleteLessonController = catchAsync(async (req: Request,
+         message: result.message,
+         isCompleted: true
+     });
+-});
+\ No newline at end of file
++});
++/**
++ * Search vocab by word
++ * GET /api/vocab/search?q=query
++ */
++export const searchVocabController = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
++    const { q } = req.query;
++
++    if (!q || typeof q !== 'string') {
++        return next(new AppError('Search query is required', 400));
++    }
++
++    const prisma = (await import('../utils/prisma')).default;
++
++    const vocabs = await prisma.vocab.findMany({
++        where: {
++            word: {
++                contains: q,
++                mode: 'insensitive',
++            },
++        },
++        take: 10,
++        include: {
++            theme: true,
++            lesson: true,
++        },
++    });
++
++    res.status(200).json({
++        success: true,
++        data: vocabs,
++    });
++});
+diff --git a/backend/src/routes/FlashcardRoute.ts b/backend/src/routes/FlashcardRoute.ts
+new file mode 100644
+index 0000000..22b9f5d
+--- /dev/null
++++ b/backend/src/routes/FlashcardRoute.ts
+@@ -0,0 +1,31 @@
++// backend/src/routes/FlashcardRoute.ts
++// Định nghĩa routes cho flashcard endpoints
++
++import { Router } from 'express';
++import FlashcardController from '../controllers/FlashcardController';
++import { protect } from '../middlewares/AuthMiddleware';
++
++const router = Router();
++
++// Tất cả routes đều require authentication
++router.use(protect);
++
++// Flashcard Sets CRUD
++router.get('/sets', FlashcardController.getUserSets);
++router.get('/sets/:id', FlashcardController.getSetById);
++router.post('/sets', FlashcardController.createSet);
++router.put('/sets/:id', FlashcardController.updateSet);
++router.delete('/sets/:id', FlashcardController.deleteSet);
++
++// Flashcard Cards operations
++router.post('/sets/:setId/cards', FlashcardController.addCard);
++router.delete('/sets/:setId/cards/:vocabId', FlashcardController.removeCard);
++router.put('/sets/:setId/cards/:vocabId', FlashcardController.updateCardStatus);
++
++// Study progress
++router.put('/sets/:setId/study', FlashcardController.updateStudyProgress);
++
++// Quiz integration
++router.get('/sets/:setId/quiz', FlashcardController.getQuizForSet);
++
++export default router;
+diff --git a/backend/src/routes/VocabRoute.ts b/backend/src/routes/VocabRoute.ts
+index 011812f..ff90652 100644
+--- a/backend/src/routes/VocabRoute.ts
++++ b/backend/src/routes/VocabRoute.ts
+@@ -10,6 +10,7 @@ import {
+     updateVocabProgressController,
+     checkAndCompleteLessonController,
+     saveStudyProgressController,
++    searchVocabController,
+ } from '../controllers/VocabController';
+ 
+ const router = Router();
+@@ -37,4 +38,7 @@ router.post('/lessons/:lessonId/progress/save', protect, csrfMiddleware, saveStu
+ // Endpoint: POST /api/vocab/lesson/complete (Đổi tên cho rõ ràng hơn)
+ router.post('/lessons/:lessonId/complete', protect, csrfMiddleware, checkAndCompleteLessonController);
+ 
++// Endpoint: GET /api/vocab/search?q=query
++router.get('/search', protect, searchVocabController);
++
+ export default router;
+\ No newline at end of file
+diff --git a/backend/src/services/FlashcardService.ts b/backend/src/services/FlashcardService.ts
+new file mode 100644
+index 0000000..78ea8d9
+--- /dev/null
++++ b/backend/src/services/FlashcardService.ts
+@@ -0,0 +1,328 @@
++// backend/src/services/FlashcardService.ts
++// Service layer for flashcard operations
++
++import { PrismaClient, Status } from '@prisma/client';
++import AppError from '../utils/AppError';
++
++const prisma = new PrismaClient();
++
++export interface CreateFlashcardSetDto {
++  set_name: string;
++  description?: string;
++  background_color?: string;
++  icon?: string;
++  width_size?: string;
++  height_custom?: number;
++  theme_tag?: string;
++}
++
++export interface UpdateFlashcardSetDto {
++  set_name?: string;
++  description?: string;
++  background_color?: string;
++  icon?: string;
++  width_size?: string;
++  height_custom?: number;
++  theme_tag?: string;
++}
++
++export interface AddCardToSetDto {
++  vocab_id: number;
++  status?: Status;
++}
++
++class FlashcardService {
++  /**
++   * Lấy tất cả flashcard sets của user
++   */
++  async getUserFlashcardSets(userId: number) {
++    const sets = await prisma.userFlashcardSets.findMany({
++      where: { user_id: userId },
++      include: {
++        _count: {
++          select: { user_flashcard_cards: true },
++        },
++      },
++      orderBy: { created_at: 'desc' },
++    });
++
++    return sets.map((set) => ({
++      ...set,
++      card_count: set._count.user_flashcard_cards,
++    }));
++  }
++
++  /**
++   * Lấy chi tiết 1 flashcard set với cards
++   */
++  async getFlashcardSetById(setId: number, userId: number) {
++    const set = await prisma.userFlashcardSets.findFirst({
++      where: {
++        id: setId,
++        user_id: userId,
++      },
++      include: {
++        user_flashcard_cards: {
++          include: {
++            vocab: {
++              include: {
++                theme: true,
++                lesson: true,
++              },
++            },
++          },
++        },
++      },
++    });
++
++    if (!set) {
++      throw new AppError('Flashcard set not found', 404);
++    }
++
++    return {
++      ...set,
++      card_count: set.user_flashcard_cards.length,
++      cards: set.user_flashcard_cards,
++    };
++  }
++
++  /**
++   * Tạo flashcard set mới
++   */
++  async createFlashcardSet(userId: number, data: CreateFlashcardSetDto) {
++    const newSet = await prisma.userFlashcardSets.create({
++      data: {
++        user_id: userId,
++        set_name: data.set_name,
++        description: data.description,
++        background_color: data.background_color || '#C8CC77',
++        icon: data.icon,
++        width_size: data.width_size || 'medium',
++        height_custom: data.height_custom,
++        theme_tag: data.theme_tag,
++      },
++      include: {
++        _count: {
++          select: { user_flashcard_cards: true },
++        },
++      },
++    });
++
++    return {
++      ...newSet,
++      card_count: newSet._count.user_flashcard_cards,
++    };
++  }
++
++  /**
++   * Update flashcard set
++   */
++  async updateFlashcardSet(setId: number, userId: number, data: UpdateFlashcardSetDto) {
++    // Verify ownership
++    const existingSet = await prisma.userFlashcardSets.findFirst({
++      where: { id: setId, user_id: userId },
++    });
++
++    if (!existingSet) {
++      throw new AppError('Flashcard set not found or unauthorized', 404);
++    }
++
++    const updatedSet = await prisma.userFlashcardSets.update({
++      where: { id: setId },
++      data: {
++        ...data,
++        updated_at: new Date(),
++      },
++      include: {
++        _count: {
++          select: { user_flashcard_cards: true },
++        },
++      },
++    });
++
++    return {
++      ...updatedSet,
++      card_count: updatedSet._count.user_flashcard_cards,
++    };
++  }
++
++  /**
++   * Xóa flashcard set
++   */
++  async deleteFlashcardSet(setId: number, userId: number) {
++    // Verify ownership
++    const existingSet = await prisma.userFlashcardSets.findFirst({
++      where: { id: setId, user_id: userId },
++    });
++
++    if (!existingSet) {
++      throw new AppError('Flashcard set not found or unauthorized', 404);
++    }
++
++    await prisma.userFlashcardSets.delete({
++      where: { id: setId },
++    });
++
++    return { message: 'Flashcard set deleted successfully' };
++  }
++
++  /**
++   * Thêm card vào set
++   */
++  async addCardToSet(setId: number, userId: number, data: AddCardToSetDto) {
++    // Verify set ownership
++    const set = await prisma.userFlashcardSets.findFirst({
++      where: { id: setId, user_id: userId },
++    });
++
++    if (!set) {
++      throw new AppError('Flashcard set not found or unauthorized', 404);
++    }
++
++    // Verify vocab exists
++    const vocab = await prisma.vocab.findUnique({
++      where: { id: data.vocab_id },
++    });
++
++    if (!vocab) {
++      throw new AppError('Vocabulary not found', 404);
++    }
++
++    // Check if card already exists
++    const existingCard = await prisma.userFlashcardCards.findUnique({
++      where: {
++        set_id_vocab_id: {
++          set_id: setId,
++          vocab_id: data.vocab_id,
++        },
++      },
++    });
++
++    if (existingCard) {
++      throw new AppError('This vocabulary is already in the set', 400);
++    }
++
++    // Create card
++    const newCard = await prisma.userFlashcardCards.create({
++      data: {
++        set_id: setId,
++        vocab_id: data.vocab_id,
++        status: data.status || 'new',
++      },
++      include: {
++        vocab: true,
++      },
++    });
++
++    return newCard;
++  }
++
++  /**
++   * Xóa card khỏi set
++   */
++  async removeCardFromSet(setId: number, vocabId: number, userId: number) {
++    // Verify set ownership
++    const set = await prisma.userFlashcardSets.findFirst({
++      where: { id: setId, user_id: userId },
++    });
++
++    if (!set) {
++      throw new AppError('Flashcard set not found or unauthorized', 404);
++    }
++
++    // Delete card
++    await prisma.userFlashcardCards.delete({
++      where: {
++        set_id_vocab_id: {
++          set_id: setId,
++          vocab_id: vocabId,
++        },
++      },
++    });
++
++    return { message: 'Card removed from set successfully' };
++  }
++
++  /**
++   * Update card status (new, learned, review, mastered)
++   */
++  async updateCardStatus(setId: number, vocabId: number, userId: number, status: Status) {
++    // Verify set ownership
++    const set = await prisma.userFlashcardSets.findFirst({
++      where: { id: setId, user_id: userId },
++    });
++
++    if (!set) {
++      throw new AppError('Flashcard set not found or unauthorized', 404);
++    }
++
++    const updatedCard = await prisma.userFlashcardCards.update({
++      where: {
++        set_id_vocab_id: {
++          set_id: setId,
++          vocab_id: vocabId,
++        },
++      },
++      data: { status },
++      include: {
++        vocab: true,
++      },
++    });
++
++    return updatedCard;
++  }
++
++  /**
++   * Update last studied timestamp
++   */
++  async updateStudyProgress(setId: number, userId: number) {
++    // Verify ownership
++    const set = await prisma.userFlashcardSets.findFirst({
++      where: { id: setId, user_id: userId },
++    });
++
++    if (!set) {
++      throw new AppError('Flashcard set not found or unauthorized', 404);
++    }
++
++    const updatedSet = await prisma.userFlashcardSets.update({
++      where: { id: setId },
++      data: { last_studied_at: new Date() },
++    });
++
++    return updatedSet;
++  }
++
++  /**
++   * Get quiz for flashcard set (filter quizzes by theme_tag)
++   */
++  async getQuizForSet(setId: number, userId: number) {
++    // Get set info
++    const set = await prisma.userFlashcardSets.findFirst({
++      where: { id: setId, user_id: userId },
++    });
++
++    if (!set) {
++      throw new AppError('Flashcard set not found or unauthorized', 404);
++    }
++
++    // Find quizzes matching theme_tag with context = flashcard_set
++    const quizzes = await prisma.quizzes.findMany({
++      where: {
++        context: 'flashcard_set',
++        theme_tag: set.theme_tag,
++      },
++      orderBy: { completed_at: 'desc' },
++      take: 10,
++    });
++
++    return {
++      set_id: setId,
++      set_name: set.set_name,
++      theme_tag: set.theme_tag,
++      quizzes,
++    };
++  }
++}
++
++export default new FlashcardService();
+diff --git a/frontend/next.config.ts b/frontend/next.config.ts
+index b112760..74c3d44 100644
+--- a/frontend/next.config.ts
++++ b/frontend/next.config.ts
+@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
+       // Giữ lại các domains khác nếu có
+       "www.ielts-mentor.com", // <--- THÊM DOMAIN NÀY
+       "lh3.googleusercontent.com",
++      "api.dicebear.com", // Avatar placeholder service
+     ],
+     remotePatterns: [
+       {
+@@ -18,6 +19,12 @@ const nextConfig: NextConfig = {
+         port: '',
+         pathname: '/**'
+       },
++      {
++        protocol: 'https',
++        hostname: 'api.dicebear.com',
++        port: '',
++        pathname: '/**'
++      },
+       // Nếu bạn dùng tên miền tùy chỉnh, hãy thêm vào đây
+       // ...
+     ],
+@@ -30,7 +37,7 @@ const nextConfig: NextConfig = {
+         // Bắt bất kỳ thứ gì sau /api/
+         source: '/api/:path*',
+         // Chuyển hướng nó đến Backend
+-        destination: 'http://localhost:4000/api/:path*',
++        destination: 'http://localhost:4001/api/:path*',
+       },
+     ];
+   },
+diff --git a/frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx b/frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx
+new file mode 100644
+index 0000000..07e0d66
+--- /dev/null
++++ b/frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx
+@@ -0,0 +1,368 @@
++// frontend/src/app/(full_screen)/flashcard/quiz/[id]/page.tsx
++// Final Quiz Screen - Quiz sau khi học xong flashcard set
++
++'use client';
++
++import { useEffect, useState } from 'react';
++import { useRouter, useParams } from 'next/navigation';
++import { useAuth } from '@/context/AuthContext';
++import { getQuizForSet, fetchFlashcardSetById } from '@/lib/api/flashcard';
++import { FlashcardSetWithCards, QuizForSet } from '@/lib/types/flashcard';
++import { Button } from '@/components/ui/button';
++import { toast } from '@/components/ui/use-toast';
++import { ArrowLeft, CheckCircle, XCircle, Trophy } from 'lucide-react';
++
++interface QuizQuestion {
++  id: number;
++  word: string;
++  correctAnswer: string;
++  options: string[];
++  userAnswer?: string;
++  isCorrect?: boolean;
++}
++
++export default function FlashcardQuizPage() {
++  const { user, loading: authLoading } = useAuth();
++  const router = useRouter();
++  const params = useParams();
++  const setId = parseInt(params.id as string);
++
++  const [flashcardSet, setFlashcardSet] = useState<FlashcardSetWithCards | null>(null);
++  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
++  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
++  const [selectedAnswer, setSelectedAnswer] = useState<string>('');
++  const [showResult, setShowResult] = useState(false);
++  const [quizCompleted, setQuizCompleted] = useState(false);
++  const [score, setScore] = useState(0);
++  const [loading, setLoading] = useState(true);
++
++  // Redirect if not authenticated
++  useEffect(() => {
++    if (authLoading) return;
++    if (!user) {
++      router.replace('/signin');
++    }
++  }, [user, authLoading, router]);
++
++  // Fetch flashcard set and generate quiz
++  useEffect(() => {
++    if (!user || isNaN(setId)) return;
++
++    const loadQuiz = async () => {
++      try {
++        setLoading(true);
++        const setData = await fetchFlashcardSetById(setId);
++        setFlashcardSet(setData);
++
++        // Generate quiz questions from flashcard set
++        const generatedQuestions = generateQuestions(setData);
++        setQuestions(generatedQuestions);
++      } catch (error: any) {
++        console.error('Error loading quiz:', error);
++        toast({
++          title: 'Lỗi',
++          description: error.response?.data?.message || 'Không thể tải quiz',
++          variant: 'destructive',
++        });
++        router.push('/flashcard');
++      } finally {
++        setLoading(false);
++      }
++    };
++
++    loadQuiz();
++  }, [user, setId, router]);
++
++  // Generate quiz questions from cards
++  const generateQuestions = (set: FlashcardSetWithCards): QuizQuestion[] => {
++    const cards = set.cards || set.user_flashcard_cards || [];
++
++    return cards.slice(0, 20).map((card, index) => {
++      const vocab = card.vocab;
++      if (!vocab) {
++        return {
++          id: index,
++          word: 'Unknown',
++          correctAnswer: 'Unknown',
++          options: ['Unknown'],
++        };
++      }
++
++      // Generate wrong answers (random other cards)
++      const wrongAnswers = cards
++        .filter((c) => c.vocab_id !== card.vocab_id)
++        .slice(0, 3)
++        .map((c) => c.vocab?.meaning_vn || 'Unknown');
++
++      // Shuffle options
++      const options = [vocab.meaning_vn || vocab.meaning_en, ...wrongAnswers]
++        .filter((opt) => opt && opt !== 'Unknown')
++        .sort(() => Math.random() - 0.5)
++        .slice(0, 4);
++
++      return {
++        id: index,
++        word: vocab.word,
++        correctAnswer: vocab.meaning_vn || vocab.meaning_en,
++        options,
++      };
++    });
++  };
++
++  const handleAnswerSelect = (answer: string) => {
++    if (showResult) return;
++    setSelectedAnswer(answer);
++  };
++
++  const handleCheckAnswer = () => {
++    if (!selectedAnswer) {
++      toast({
++        title: 'Chưa chọn đáp án',
++        description: 'Vui lòng chọn một đáp án',
++        variant: 'destructive',
++      });
++      return;
++    }
++
++    const currentQuestion = questions[currentQuestionIndex];
++    const isCorrect = selectedAnswer === currentQuestion.correctAnswer;
++
++    // Update question with user answer
++    const updatedQuestions = [...questions];
++    updatedQuestions[currentQuestionIndex] = {
++      ...currentQuestion,
++      userAnswer: selectedAnswer,
++      isCorrect,
++    };
++    setQuestions(updatedQuestions);
++
++    if (isCorrect) {
++      setScore(score + 1);
++    }
++
++    setShowResult(true);
++  };
++
++  const handleNextQuestion = () => {
++    if (currentQuestionIndex < questions.length - 1) {
++      setCurrentQuestionIndex(currentQuestionIndex + 1);
++      setSelectedAnswer('');
++      setShowResult(false);
++    } else {
++      // Quiz completed
++      setQuizCompleted(true);
++    }
++  };
++
++  const handleRetry = () => {
++    // Reload quiz
++    if (flashcardSet) {
++      const generatedQuestions = generateQuestions(flashcardSet);
++      setQuestions(generatedQuestions);
++      setCurrentQuestionIndex(0);
++      setSelectedAnswer('');
++      setShowResult(false);
++      setQuizCompleted(false);
++      setScore(0);
++    }
++  };
++
++  if (authLoading || loading) {
++    return (
++      <div className="min-h-screen flex items-center justify-center bg-white">
++        <div className="text-center">
++          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-edu mx-auto"></div>
++          <p className="mt-4 text-gray-600">Đang tải quiz...</p>
++        </div>
++      </div>
++    );
++  }
++
++  if (!user || !flashcardSet || questions.length === 0) return null;
++
++  const currentQuestion = questions[currentQuestionIndex];
++  const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
++  const accuracy = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
++
++  // Quiz Completed Screen
++  if (quizCompleted) {
++    const passed = accuracy >= 70;
++
++    return (
++      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 flex items-center justify-center p-6">
++        <div className="bg-white rounded-3xl shadow-2xl p-12 max-w-2xl w-full text-center">
++          {/* Trophy Icon */}
++          <div className="mb-6">
++            {passed ? (
++              <Trophy className="h-24 w-24 text-yellow-500 mx-auto animate-bounce" />
++            ) : (
++              <div className="text-8xl">📚</div>
++            )}
++          </div>
++
++          {/* Status Badge */}
++          <div className="mb-4">
++            {passed ? (
++              <span className="inline-flex items-center gap-2 px-6 py-3 bg-green-100 text-green-800 rounded-full font-bold text-lg">
++                <CheckCircle className="h-6 w-6" />
++                {accuracy >= 90 ? 'Xuất sắc!' : 'Đạt yêu cầu!'}
++              </span>
++            ) : (
++              <span className="inline-flex items-center gap-2 px-6 py-3 bg-orange-100 text-orange-800 rounded-full font-bold text-lg">
++                <XCircle className="h-6 w-6" />
++                Cần cố gắng thêm
++              </span>
++            )}
++          </div>
++
++          {/* Score */}
++          <div className="mb-8">
++            <div className="text-7xl font-bold text-gray-800 mb-2">{accuracy}%</div>
++            <p className="text-xl text-gray-600">
++              {score}/{questions.length} câu đúng
++            </p>
++          </div>
++
++          {/* Message */}
++          <p className="text-lg text-gray-700 mb-8">
++            {passed
++              ? 'Chúc mừng! Bạn đã nắm vững từ vựng trong bộ thẻ này.'
++              : 'Hãy học lại và thử lại lần nữa nhé!'}
++          </p>
++
++          {/* Action Buttons */}
++          <div className="flex flex-col sm:flex-row gap-4 justify-center">
++            <Button
++              onClick={handleRetry}
++              className="px-8 py-6 text-lg bg-[#4CAF50] hover:bg-[#45A049]"
++            >
++              Làm lại Quiz
++            </Button>
++            <Button
++              onClick={() => router.push(`/flashcard/study/${setId}`)}
++              variant="outline"
++              className="px-8 py-6 text-lg"
++            >
++              Học lại
++            </Button>
++            <Button
++              onClick={() => router.push('/flashcard')}
++              variant="outline"
++              className="px-8 py-6 text-lg"
++            >
++              Về trang chủ
++            </Button>
++          </div>
++        </div>
++      </div>
++    );
++  }
++
++  // Quiz Question Screen
++  return (
++    <div className="min-h-screen bg-white flex flex-col">
++      {/* Header */}
++      <div className="border-b px-6 py-4">
++        <div className="max-w-4xl mx-auto flex items-center justify-between">
++          <button
++            onClick={() => router.push('/flashcard')}
++            className="p-2 hover:bg-gray-100 rounded-full"
++          >
++            <ArrowLeft className="h-6 w-6" />
++          </button>
++
++          <div className="flex-1 max-w-md mx-8">
++            <div className="flex items-center gap-3">
++              <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
++                <div
++                  className="h-full bg-[#4CAF50] transition-all"
++                  style={{ width: `${progress}%` }}
++                />
++              </div>
++              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
++                Câu {currentQuestionIndex + 1}/{questions.length}
++              </span>
++            </div>
++          </div>
++
++          <div className="text-sm font-medium text-gray-600">
++            Score: {score}/{currentQuestionIndex + (showResult ? 1 : 0)}
++          </div>
++        </div>
++      </div>
++
++      {/* Quiz Title */}
++      <div className="text-center py-6">
++        <h2 className="text-2xl font-bold text-gray-800">
++          Final Quiz - {flashcardSet.set_name}
++        </h2>
++      </div>
++
++      {/* Question Card */}
++      <div className="flex-1 flex items-center justify-center px-6 py-8">
++        <div className="w-full max-w-2xl">
++          <div className="bg-white rounded-2xl shadow-xl p-10">
++            {/* Question */}
++            <div className="mb-8">
++              <p className="text-sm text-gray-500 mb-3">
++                What does <strong>"{currentQuestion.word}"</strong> mean?
++              </p>
++              <h3 className="text-3xl font-bold text-black">{currentQuestion.word}</h3>
++            </div>
++
++            {/* Options */}
++            <div className="space-y-3 mb-8">
++              {currentQuestion.options.map((option, index) => {
++                const isSelected = selectedAnswer === option;
++                const isCorrect = option === currentQuestion.correctAnswer;
++                const showCorrect = showResult && isCorrect;
++                const showWrong = showResult && isSelected && !isCorrect;
++
++                return (
++                  <button
++                    key={index}
++                    onClick={() => handleAnswerSelect(option)}
++                    disabled={showResult}
++                    className={`w-full p-4 rounded-xl border-2 text-left transition-all ${
++                      showCorrect
++                        ? 'bg-green-50 border-green-500'
++                        : showWrong
++                        ? 'bg-red-50 border-red-500'
++                        : isSelected
++                        ? 'bg-blue-50 border-blue-500'
++                        : 'border-gray-200 hover:border-gray-400'
++                    }`}
++                  >
++                    <div className="flex items-center justify-between">
++                      <span className="text-lg">{option}</span>
++                      {showCorrect && <CheckCircle className="h-6 w-6 text-green-600" />}
++                      {showWrong && <XCircle className="h-6 w-6 text-red-600" />}
++                    </div>
++                  </button>
++                );
++              })}
++            </div>
++
++            {/* Action Button */}
++            {!showResult ? (
++              <Button
++                onClick={handleCheckAnswer}
++                disabled={!selectedAnswer}
++                className="w-full py-6 text-lg bg-[#4CAF50] hover:bg-[#45A049]"
++              >
++                Kiểm tra
++              </Button>
++            ) : (
++              <Button
++                onClick={handleNextQuestion}
++                className="w-full py-6 text-lg bg-[#4CAF50] hover:bg-[#45A049]"
++              >
++                {currentQuestionIndex === questions.length - 1 ? 'Xem kết quả' : 'Tiếp tục'}
++              </Button>
++            )}
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/app/(full_screen)/flashcard/study/[id]/page.tsx b/frontend/src/app/(full_screen)/flashcard/study/[id]/page.tsx
+new file mode 100644
+index 0000000..12d6d24
+--- /dev/null
++++ b/frontend/src/app/(full_screen)/flashcard/study/[id]/page.tsx
+@@ -0,0 +1,451 @@
++// frontend/src/app/(full_screen)/flashcard/study/[id]/page.tsx
++// Study Mode Screen - Full screen với flip card animation
++
++'use client';
++
++import { useEffect, useState } from 'react';
++import { useRouter, useParams } from 'next/navigation';
++import { useAuth } from '@/context/AuthContext';
++import {
++  fetchFlashcardSetById,
++  updateStudyProgress,
++  updateCardStatus,
++  addCardToSet,
++} from '@/lib/api/flashcard';
++import { FlashcardSetWithCards, FlashcardCard, FlashcardStatus } from '@/lib/types/flashcard';
++import { Button } from '@/components/ui/button';
++import { Input } from '@/components/ui/input';
++import { toast } from '@/components/ui/use-toast';
++import {
++  X,
++  ChevronLeft,
++  ChevronRight,
++  Volume2,
++  Plus,
++  Menu,
++  Smile,
++} from 'lucide-react';
++import { useState as useStateHook } from 'react';
++
++export default function StudyModePage() {
++  const { user, loading: authLoading } = useAuth();
++  const router = useRouter();
++  const params = useParams();
++  const setId = parseInt(params.id as string);
++
++  const [flashcardSet, setFlashcardSet] = useState<FlashcardSetWithCards | null>(null);
++  const [currentIndex, setCurrentIndex] = useState(0);
++  const [isFlipped, setIsFlipped] = useState(false);
++  const [loading, setLoading] = useState(true);
++  const [showAddModal, setShowAddModal] = useState(false);
++
++  // Redirect if not authenticated
++  useEffect(() => {
++    if (authLoading) return;
++    if (!user) {
++      router.replace('/signin');
++    }
++  }, [user, authLoading, router]);
++
++  // Fetch flashcard set
++  useEffect(() => {
++    if (!user || isNaN(setId)) return;
++
++    const loadSet = async () => {
++      try {
++        setLoading(true);
++        const data = await fetchFlashcardSetById(setId);
++        setFlashcardSet(data);
++
++        // Update study progress on load
++        await updateStudyProgress(setId);
++      } catch (error: any) {
++        console.error('Error loading flashcard set:', error);
++        toast({
++          title: 'Lỗi',
++          description: error.response?.data?.message || 'Không thể tải flashcard set',
++          variant: 'destructive',
++        });
++        router.push('/flashcard');
++      } finally {
++        setLoading(false);
++      }
++    };
++
++    loadSet();
++  }, [user, setId, router]);
++
++  // Keyboard shortcuts
++  useEffect(() => {
++    const handleKeyPress = (e: KeyboardEvent) => {
++      if (e.key === 'ArrowLeft' || e.key === 'Backspace') {
++        handlePrevious();
++      } else if (e.key === 'ArrowRight' || e.key === ' ') {
++        if (isFlipped) {
++          handleNext();
++        } else {
++          setIsFlipped(true);
++        }
++      } else if (e.key === 'Enter') {
++        setIsFlipped(!isFlipped);
++      } else if (e.key === 'Escape') {
++        handleExit();
++      }
++    };
++
++    window.addEventListener('keydown', handleKeyPress);
++    return () => window.removeEventListener('keydown', handleKeyPress);
++  }, [isFlipped, currentIndex]);
++
++  const handleNext = () => {
++    if (!flashcardSet) return;
++
++    if (currentIndex < flashcardSet.cards.length - 1) {
++      setCurrentIndex(currentIndex + 1);
++      setIsFlipped(false);
++    } else {
++      // Finished all cards - show completion modal
++      handleCompletion();
++    }
++  };
++
++  const handlePrevious = () => {
++    if (currentIndex > 0) {
++      setCurrentIndex(currentIndex - 1);
++      setIsFlipped(false);
++    }
++  };
++
++  const handleFlip = () => {
++    setIsFlipped(!isFlipped);
++  };
++
++  const handleExit = () => {
++    router.push('/flashcard');
++  };
++
++  const handleCompletion = () => {
++    // Show completion screen and redirect to quiz
++    const confirmQuiz = confirm(
++      `Xuất sắc! Bạn đã học xong ${flashcardSet?.cards.length} thẻ.\n\nSẵn sàng làm bài quiz cuối để kiểm tra kiến thức?`
++    );
++
++    if (confirmQuiz) {
++      // TODO: Navigate to quiz screen
++      router.push(`/flashcard/quiz/${setId}`);
++    } else {
++      router.push('/flashcard');
++    }
++  };
++
++  const playAudio = (audioUrl?: string | null) => {
++    if (!audioUrl) {
++      toast({
++        title: 'Không có audio',
++        description: 'Từ này chưa có phát âm',
++        variant: 'destructive',
++      });
++      return;
++    }
++
++    const audio = new Audio(audioUrl);
++    audio.play().catch((error) => {
++      console.error('Error playing audio:', error);
++      toast({
++        title: 'Lỗi phát âm',
++        description: 'Không thể phát audio',
++        variant: 'destructive',
++      });
++    });
++  };
++
++  if (authLoading || loading) {
++    return (
++      <div className="min-h-screen flex items-center justify-center bg-white">
++        <div className="text-center">
++          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-edu mx-auto"></div>
++          <p className="mt-4 text-gray-600">Đang tải...</p>
++        </div>
++      </div>
++    );
++  }
++
++  if (!user || !flashcardSet) return null;
++
++  const currentCard = flashcardSet.cards[currentIndex];
++  const vocab = currentCard?.vocab;
++  const progress = ((currentIndex + 1) / flashcardSet.cards.length) * 100;
++
++  return (
++    <div className="min-h-screen bg-white flex flex-col">
++      {/* Top Control Bar */}
++      <div className="border-b px-6 py-4">
++        <div className="max-w-6xl mx-auto flex items-center justify-between">
++          {/* Left: Menu */}
++          <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
++            <Menu className="h-6 w-6" />
++          </button>
++
++          {/* Center: Progress */}
++          <div className="flex-1 max-w-md mx-8">
++            <div className="flex items-center gap-3">
++              <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
++                <div
++                  className="h-full bg-[#4CAF50] transition-all duration-300"
++                  style={{ width: `${progress}%` }}
++                />
++              </div>
++              <span className="text-sm font-medium text-gray-600 whitespace-nowrap">
++                {currentIndex + 1}/{flashcardSet.cards.length}
++              </span>
++            </div>
++          </div>
++
++          {/* Right: Quick Add + Exit */}
++          <div className="flex items-center gap-2">
++            <button
++              onClick={() => setShowAddModal(true)}
++              className="p-2 bg-[#4CAF50] text-white rounded-full hover:bg-[#45A049] transition-colors shadow-md"
++              title="Thêm thẻ mới (Ctrl+N)"
++            >
++              <Plus className="h-5 w-5" />
++            </button>
++            <button
++              onClick={handleExit}
++              className="p-2 hover:bg-gray-100 rounded-full transition-colors"
++            >
++              <Smile className="h-6 w-6" />
++            </button>
++          </div>
++        </div>
++      </div>
++
++      {/* Deck Title */}
++      <div className="text-center py-4">
++        <h2 className="text-xl font-bold text-gray-800">{flashcardSet.set_name}</h2>
++      </div>
++
++      {/* Main Flashcard Area */}
++      <div className="flex-1 flex items-center justify-center px-6 py-8">
++        <div className="w-full max-w-2xl">
++          {/* Flashcard Container with 3D Flip */}
++          <div
++            className="relative w-full cursor-pointer"
++            style={{
++              perspective: '1000px',
++              minHeight: '400px',
++            }}
++            onClick={handleFlip}
++          >
++            <div
++              className={`relative w-full h-full transition-transform duration-500 preserve-3d ${
++                isFlipped ? 'rotate-y-180' : ''
++              }`}
++              style={{
++                transformStyle: 'preserve-3d',
++                transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
++              }}
++            >
++              {/* Front Side */}
++              <div
++                className="absolute w-full bg-white rounded-2xl shadow-2xl p-12 backface-hidden"
++                style={{
++                  backfaceVisibility: 'hidden',
++                  minHeight: '400px',
++                }}
++              >
++                <div className="flex flex-col items-center justify-center h-full">
++                  {/* Word */}
++                  <h1 className="text-5xl md:text-6xl font-bold text-black mb-4 text-center">
++                    {vocab?.word || 'Loading...'}
++                  </h1>
++
++                  {/* IPA */}
++                  {vocab?.ipa_us && (
++                    <p className="text-xl text-gray-600 mb-6 font-mono">
++                      /{vocab.ipa_us}/
++                    </p>
++                  )}
++
++                  {/* Audio Icons */}
++                  <div className="flex gap-4">
++                    {vocab?.audio_url && (
++                      <button
++                        onClick={(e) => {
++                          e.stopPropagation();
++                          playAudio(vocab.audio_url);
++                        }}
++                        className="flex items-center gap-2 px-4 py-2 bg-blue-100 hover:bg-blue-200 rounded-full transition-colors"
++                      >
++                        <Volume2 className="h-5 w-5 text-blue-600" />
++                        <span className="text-sm font-medium text-blue-900">US</span>
++                      </button>
++                    )}
++                    {vocab?.audio_url_uk && (
++                      <button
++                        onClick={(e) => {
++                          e.stopPropagation();
++                          playAudio(vocab.audio_url_uk);
++                        }}
++                        className="flex items-center gap-2 px-4 py-2 bg-red-100 hover:bg-red-200 rounded-full transition-colors"
++                      >
++                        <Volume2 className="h-5 w-5 text-red-600" />
++                        <span className="text-sm font-medium text-red-900">UK</span>
++                      </button>
++                    )}
++                  </div>
++                </div>
++              </div>
++
++              {/* Back Side */}
++              <div
++                className="absolute w-full bg-white rounded-2xl shadow-2xl p-12 backface-hidden"
++                style={{
++                  backfaceVisibility: 'hidden',
++                  transform: 'rotateY(180deg)',
++                  minHeight: '400px',
++                }}
++              >
++                <div className="flex flex-col justify-center h-full space-y-6">
++                  {/* Definition */}
++                  <div>
++                    <p className="text-sm font-semibold text-gray-500 mb-2">Definition</p>
++                    <p className="text-xl text-black leading-relaxed">
++                      {vocab?.meaning_en || 'No definition available'}
++                    </p>
++                  </div>
++
++                  {/* Vietnamese Meaning */}
++                  {vocab?.meaning_vn && (
++                    <div>
++                      <p className="text-sm font-semibold text-gray-500 mb-2">
++                        Nghĩa tiếng Việt
++                      </p>
++                      <p className="text-xl text-black leading-relaxed">{vocab.meaning_vn}</p>
++                    </div>
++                  )}
++
++                  {/* Example */}
++                  {vocab?.example && (
++                    <div>
++                      <p className="text-sm font-semibold text-gray-500 mb-2">Example</p>
++                      <p className="text-lg text-gray-700 italic leading-relaxed">
++                        "{vocab.example}"
++                      </p>
++                    </div>
++                  )}
++                </div>
++              </div>
++            </div>
++          </div>
++
++          {/* Navigation Buttons */}
++          <div className="flex justify-center gap-6 mt-8">
++            <Button
++              onClick={handlePrevious}
++              disabled={currentIndex === 0}
++              variant="outline"
++              className="px-8 py-6 rounded-full text-lg"
++            >
++              <ChevronLeft className="mr-2 h-5 w-5" />
++              Trở lại
++            </Button>
++
++            <Button
++              onClick={handleNext}
++              className="px-8 py-6 rounded-full text-lg bg-[#4CAF50] hover:bg-[#45A049] text-white"
++            >
++              {currentIndex === flashcardSet.cards.length - 1 ? 'Hoàn thành' : 'Tiếp'}
++              <ChevronRight className="ml-2 h-5 w-5" />
++            </Button>
++          </div>
++        </div>
++      </div>
++
++      {/* Add Card Modal */}
++      {showAddModal && (
++        <AddCardModal
++          setId={setId}
++          onClose={() => setShowAddModal(false)}
++          onCardAdded={() => {
++            // Reload set
++            fetchFlashcardSetById(setId).then(setFlashcardSet);
++          }}
++        />
++      )}
++    </div>
++  );
++}
++
++// Add Card Modal Component
++function AddCardModal({
++  setId,
++  onClose,
++  onCardAdded,
++}: {
++  setId: number;
++  onClose: () => void;
++  onCardAdded: () => void;
++}) {
++  const [word, setWord] = useState('');
++  const [saving, setSaving] = useState(false);
++
++  const handleAdd = async () => {
++    if (!word.trim()) {
++      toast({
++        title: 'Lỗi',
++        description: 'Vui lòng nhập từ vựng',
++        variant: 'destructive',
++      });
++      return;
++    }
++
++    // For simplicity, we'll skip creating vocab and just show a message
++    // In production, you'd search vocab library or create new vocab
++    toast({
++      title: 'Chức năng đang phát triển',
++      description: 'Tính năng thêm thẻ trong lúc học đang được hoàn thiện',
++    });
++
++    onClose();
++  };
++
++  return (
++    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
++      <div className="bg-white rounded-2xl p-8 max-w-md w-full shadow-2xl">
++        <div className="flex items-center justify-between mb-6">
++          <h3 className="text-2xl font-bold">Thêm thẻ mới</h3>
++          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full">
++            <X className="h-5 w-5" />
++          </button>
++        </div>
++
++        <div className="space-y-4">
++          <div>
++            <label className="block text-sm font-medium mb-2">Từ vựng tiếng Anh *</label>
++            <Input
++              type="text"
++              placeholder="VD: luggage, hotel, room..."
++              value={word}
++              onChange={(e) => setWord(e.target.value)}
++              className="w-full"
++            />
++          </div>
++
++          <div className="flex gap-3">
++            <Button
++              onClick={handleAdd}
++              disabled={saving}
++              className="flex-1 bg-[#4CAF50] hover:bg-[#45A049]"
++            >
++              Thêm vào deck
++            </Button>
++            <Button onClick={onClose} variant="outline" className="flex-1">
++              Hủy
++            </Button>
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/app/(protected)/flashcard/create/page.tsx b/frontend/src/app/(protected)/flashcard/create/page.tsx
+new file mode 100644
+index 0000000..745a165
+--- /dev/null
++++ b/frontend/src/app/(protected)/flashcard/create/page.tsx
+@@ -0,0 +1,395 @@
++// frontend/src/app/(protected)/flashcard/create/page.tsx
++// Create Deck Screen - Form với add/remove cards
++
++'use client';
++
++import { useEffect, useState } from 'react';
++import { useRouter } from 'next/navigation';
++import { useAuth } from '@/context/AuthContext';
++import { createFlashcardSet, addCardToSet } from '@/lib/api/flashcard';
++import { Button } from '@/components/ui/button';
++import { Input } from '@/components/ui/input';
++import { toast } from '@/components/ui/use-toast';
++import { ArrowLeft, Plus, X, Save, Search } from 'lucide-react';
++import { VocabData } from '@/lib/types/flashcard';
++import axiosInstance from '@/lib/api/axiosInstance';
++
++interface CardFormData {
++  id: string; // Temporary ID for UI
++  word: string;
++  definition: string;
++  ipa: string;
++  meaning_vn: string;
++  example: string;
++  vocab_id?: number; // Real vocab ID from database
++}
++
++export default function CreateDeckPage() {
++  const { user, loading: authLoading } = useAuth();
++  const router = useRouter();
++
++  const [deckName, setDeckName] = useState('');
++  const [backgroundColor, setBackgroundColor] = useState('#C8CC77');
++  const [cards, setCards] = useState<CardFormData[]>([
++    { id: '1', word: '', definition: '', ipa: '', meaning_vn: '', example: '' },
++  ]);
++  const [saving, setSaving] = useState(false);
++  const [vocabSearchQuery, setVocabSearchQuery] = useState('');
++  const [vocabSearchResults, setVocabSearchResults] = useState<VocabData[]>([]);
++  const [searchingVocab, setSearchingVocab] = useState(false);
++
++  // Redirect if not authenticated
++  useEffect(() => {
++    if (authLoading) return;
++    if (!user) {
++      router.replace('/signin');
++    }
++  }, [user, authLoading, router]);
++
++  // Add new card
++  const addCard = () => {
++    const newCard: CardFormData = {
++      id: Date.now().toString(),
++      word: '',
++      definition: '',
++      ipa: '',
++      meaning_vn: '',
++      example: '',
++    };
++    setCards([...cards, newCard]);
++  };
++
++  // Remove card
++  const removeCard = (cardId: string) => {
++    if (cards.length === 1) {
++      toast({
++        title: 'Không thể xóa',
++        description: 'Phải có ít nhất 1 thẻ',
++        variant: 'destructive',
++      });
++      return;
++    }
++    setCards(cards.filter((card) => card.id !== cardId));
++  };
++
++  // Update card field
++  const updateCard = (cardId: string, field: keyof CardFormData, value: string) => {
++    setCards(
++      cards.map((card) =>
++        card.id === cardId ? { ...card, [field]: value } : card
++      )
++    );
++  };
++
++  // Search vocab from library
++  const searchVocab = async (query: string) => {
++    if (!query.trim()) {
++      setVocabSearchResults([]);
++      return;
++    }
++
++    try {
++      setSearchingVocab(true);
++      const response = await axiosInstance.get(`/api/vocab/search?q=${encodeURIComponent(query)}`);
++      setVocabSearchResults(response.data.data || []);
++    } catch (error) {
++      console.error('Error searching vocab:', error);
++      setVocabSearchResults([]);
++    } finally {
++      setSearchingVocab(false);
++    }
++  };
++
++  // Select vocab from search results
++  const selectVocab = (cardId: string, vocab: VocabData) => {
++    setCards(
++      cards.map((card) =>
++        card.id === cardId
++          ? {
++              ...card,
++              word: vocab.word,
++              definition: vocab.meaning_en,
++              ipa: vocab.ipa_us || vocab.ipa_uk || '',
++              meaning_vn: vocab.meaning_vn || '',
++              example: vocab.example || '',
++              vocab_id: vocab.id,
++            }
++          : card
++      )
++    );
++    setVocabSearchQuery('');
++    setVocabSearchResults([]);
++    toast({
++      title: 'Đã chọn từ vựng',
++      description: `"${vocab.word}" từ thư viện 5000+`,
++    });
++  };
++
++  // Save deck
++  const saveDeck = async () => {
++    // Validation
++    if (!deckName.trim()) {
++      toast({
++        title: 'Lỗi',
++        description: 'Vui lòng nhập tên bộ sưu tập',
++        variant: 'destructive',
++      });
++      return;
++    }
++
++    const filledCards = cards.filter(
++      (card) => card.word.trim() && card.definition.trim()
++    );
++
++    if (filledCards.length === 0) {
++      toast({
++        title: 'Lỗi',
++        description: 'Phải có ít nhất 1 thẻ với từ vựng và định nghĩa',
++        variant: 'destructive',
++      });
++      return;
++    }
++
++    try {
++      setSaving(true);
++
++      // Step 1: Create flashcard set
++      const newSet = await createFlashcardSet({
++        set_name: deckName,
++        background_color: backgroundColor,
++        width_size: 'medium',
++        theme_tag: 'Custom',
++      });
++
++      // Step 2: Add cards to set
++      // If card has vocab_id from library, use it
++      // Otherwise, we need to create vocab first (simplified: skip for now)
++      let addedCount = 0;
++      for (const card of filledCards) {
++        if (card.vocab_id) {
++          try {
++            await addCardToSet(newSet.id, {
++              vocab_id: card.vocab_id,
++              status: 'new',
++            });
++            addedCount++;
++          } catch (error) {
++            console.error('Error adding card:', error);
++          }
++        }
++      }
++
++      toast({
++        title: 'Thành công!',
++        description: `Đã tạo deck "${deckName}" với ${addedCount} thẻ`,
++      });
++
++      router.push('/flashcard');
++    } catch (error: any) {
++      console.error('Error saving deck:', error);
++      toast({
++        title: 'Lỗi',
++        description: error.response?.data?.message || 'Không thể tạo deck',
++        variant: 'destructive',
++      });
++    } finally {
++      setSaving(false);
++    }
++  };
++
++  if (authLoading) {
++    return (
++      <div className="min-h-screen flex items-center justify-center">
++        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-edu"></div>
++      </div>
++    );
++  }
++
++  if (!user) return null;
++
++  return (
++    <div className="min-h-screen bg-[#F5F3E8] pt-[72px]">
++      {/* Hero */}
++      <div className="bg-white border-b">
++        <div className="max-w-7xl mx-auto px-6 py-8">
++          <h1 className="text-4xl md:text-5xl font-bold text-black mb-3">
++            Flashcard Ôn Tập
++          </h1>
++          <p className="text-lg text-gray-600">Tạo và ôn từ vựng tùy ý để nhớ lâu hơn</p>
++        </div>
++      </div>
++
++      {/* Back Button */}
++      <div className="max-w-5xl mx-auto px-6 py-6">
++        <Button
++          onClick={() => router.back()}
++          variant="outline"
++          className="mb-6"
++        >
++          <ArrowLeft className="mr-2 h-4 w-4" />
++          Thoát
++        </Button>
++
++        {/* Main Form Container */}
++        <div
++          className="rounded-2xl p-8 shadow-lg"
++          style={{ backgroundColor }}
++        >
++          {/* Header: Deck Name + Save Button */}
++          <div className="flex flex-col md:flex-row gap-4 mb-8 items-start md:items-center justify-between">
++            <div className="flex-1 max-w-md">
++              <Input
++                type="text"
++                placeholder="Tên bộ sưu tập *"
++                value={deckName}
++                onChange={(e) => setDeckName(e.target.value)}
++                className="rounded-full bg-white border-0 shadow-sm text-lg px-5 py-3"
++              />
++            </div>
++
++            <div className="flex gap-3">
++              {/* Color Picker */}
++              <div className="flex items-center gap-2">
++                <label className="text-sm font-medium">Màu:</label>
++                <input
++                  type="color"
++                  value={backgroundColor}
++                  onChange={(e) => setBackgroundColor(e.target.value)}
++                  className="w-12 h-12 rounded-lg cursor-pointer border-2 border-white shadow-md"
++                />
++              </div>
++
++              {/* Save Button */}
++              <Button
++                onClick={saveDeck}
++                disabled={saving}
++                className="bg-[#4CAF50] hover:bg-[#45A049] text-white rounded-full px-8 shadow-md"
++              >
++                {saving ? (
++                  <>
++                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
++                    Đang lưu...
++                  </>
++                ) : (
++                  <>
++                    <Save className="mr-2 h-4 w-4" />
++                    Lưu lại
++                  </>
++                )}
++              </Button>
++            </div>
++          </div>
++
++          {/* Info Badge */}
++          <div className="mb-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
++            <div className="flex items-start gap-3">
++              <Plus className="h-5 w-5 text-blue-600 mt-0.5" />
++              <div>
++                <p className="font-medium text-blue-900">Thêm thẻ mới</p>
++                <p className="text-sm text-blue-700">
++                  Chỉ được nhập nội dung vào các thẻ hoặc chọn từ kho từ vựng 5000+
++                </p>
++              </div>
++            </div>
++          </div>
++
++          {/* Cards */}
++          {cards.map((card, index) => (
++            <div
++              key={card.id}
++              className="bg-white rounded-xl p-6 mb-6 shadow-sm relative"
++            >
++              {/* Card Header */}
++              <div className="flex items-center justify-between mb-4">
++                <h3 className="text-lg font-bold">Thẻ {index + 1}</h3>
++
++                {/* Delete Button */}
++                {cards.length > 1 && (
++                  <button
++                    onClick={() => removeCard(card.id)}
++                    className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
++                  >
++                    <X className="h-5 w-5" />
++                  </button>
++                )}
++              </div>
++
++              {/* Row 1: Word + Definition */}
++              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
++                <div>
++                  <Input
++                    type="text"
++                    placeholder="Từ vựng tiếng Anh"
++                    value={card.word}
++                    onChange={(e) => updateCard(card.id, 'word', e.target.value)}
++                    className="bg-gray-50 border-gray-200"
++                  />
++                </div>
++                <div>
++                  <Input
++                    type="text"
++                    placeholder="Định nghĩa tiếng Anh"
++                    value={card.definition}
++                    onChange={(e) => updateCard(card.id, 'definition', e.target.value)}
++                    className="bg-gray-50 border-gray-200"
++                  />
++                </div>
++              </div>
++
++              {/* Row 2: IPA + Meaning VN */}
++              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
++                <div>
++                  <Input
++                    type="text"
++                    placeholder="Phiên âm IPA"
++                    value={card.ipa}
++                    onChange={(e) => updateCard(card.id, 'ipa', e.target.value)}
++                    className="bg-gray-50 border-gray-200"
++                  />
++                </div>
++                <div>
++                  <Input
++                    type="text"
++                    placeholder="Nghĩa tiếng Việt"
++                    value={card.meaning_vn}
++                    onChange={(e) => updateCard(card.id, 'meaning_vn', e.target.value)}
++                    className="bg-gray-50 border-gray-200"
++                  />
++                </div>
++              </div>
++
++              {/* Row 3: Example */}
++              <div>
++                <Input
++                  type="text"
++                  placeholder="Câu ví dụ"
++                  value={card.example}
++                  onChange={(e) => updateCard(card.id, 'example', e.target.value)}
++                  className="bg-gray-50 border-gray-200"
++                />
++              </div>
++
++              {/* Footer: Vocab from Library */}
++              {card.vocab_id && (
++                <div className="mt-4 flex items-center gap-2 text-sm text-green-600">
++                  <div className="w-2 h-2 rounded-full bg-green-600"></div>
++                  <span>Từ kho 5000+</span>
++                </div>
++              )}
++            </div>
++          ))}
++
++          {/* Add Card Button */}
++          <div className="flex justify-center">
++            <button
++              onClick={addCard}
++              className="w-12 h-12 rounded-full bg-[#4CAF50] text-white shadow-lg hover:scale-110 hover:shadow-xl transition-all flex items-center justify-center"
++            >
++              <Plus className="h-6 w-6" />
++            </button>
++          </div>
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/frontend/src/app/(protected)/flashcard/page.tsx b/frontend/src/app/(protected)/flashcard/page.tsx
+new file mode 100644
+index 0000000..841f599
+--- /dev/null
++++ b/frontend/src/app/(protected)/flashcard/page.tsx
+@@ -0,0 +1,227 @@
++// frontend/src/app/(protected)/flashcard/page.tsx
++// Flashcard Overview Screen - Masonry Grid với card customization
++
++'use client';
++
++import { useEffect, useState } from 'react';
++import { useRouter } from 'next/navigation';
++import { useAuth } from '@/context/AuthContext';
++import { fetchUserFlashcardSets } from '@/lib/api/flashcard';
++import { FlashcardSet } from '@/lib/types/flashcard';
++import { Button } from '@/components/ui/button';
++import { Input } from '@/components/ui/input';
++import { toast } from '@/components/ui/use-toast';
++import { Search, Plus, SortAsc } from 'lucide-react';
++
++export default function FlashcardOverviewPage() {
++  const { user, loading: authLoading } = useAuth();
++  const router = useRouter();
++
++  const [flashcardSets, setFlashcardSets] = useState<FlashcardSet[]>([]);
++  const [filteredSets, setFilteredSets] = useState<FlashcardSet[]>([]);
++  const [loading, setLoading] = useState(true);
++  const [searchQuery, setSearchQuery] = useState('');
++
++  // Redirect if not authenticated
++  useEffect(() => {
++    if (authLoading) return;
++    if (!user) {
++      router.replace('/signin');
++    }
++  }, [user, authLoading, router]);
++
++  // Fetch flashcard sets
++  useEffect(() => {
++    if (!user) return;
++
++    const loadFlashcardSets = async () => {
++      try {
++        setLoading(true);
++        const sets = await fetchUserFlashcardSets();
++        setFlashcardSets(sets);
++        setFilteredSets(sets);
++      } catch (error: any) {
++        console.error('Error fetching flashcard sets:', error);
++        toast({
++          title: 'Lỗi',
++          description: error.response?.data?.message || 'Không thể tải danh sách flashcard',
++          variant: 'destructive',
++        });
++      } finally {
++        setLoading(false);
++      }
++    };
++
++    loadFlashcardSets();
++  }, [user]);
++
++  // Search filter
++  useEffect(() => {
++    if (!searchQuery.trim()) {
++      setFilteredSets(flashcardSets);
++      return;
++    }
++
++    const filtered = flashcardSets.filter(
++      (set) =>
++        set.set_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
++        set.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
++        set.theme_tag?.toLowerCase().includes(searchQuery.toLowerCase())
++    );
++    setFilteredSets(filtered);
++  }, [searchQuery, flashcardSets]);
++
++  if (authLoading || loading) {
++    return (
++      <div className="min-h-screen flex items-center justify-center bg-[#F5F3E8]">
++        <div className="text-center">
++          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-edu mx-auto"></div>
++          <p className="mt-4 text-gray-600">Đang tải...</p>
++        </div>
++      </div>
++    );
++  }
++
++  if (!user) return null;
++
++  return (
++    <div className="min-h-screen bg-[#F5F3E8] pt-[72px]">
++      {/* Hero Section */}
++      <div className="bg-white border-b">
++        <div className="max-w-7xl mx-auto px-6 py-8">
++          <h1 className="text-4xl md:text-5xl font-bold text-black mb-3">
++            Flashcard Ôn Tập
++          </h1>
++          <p className="text-lg text-gray-600">
++            Tạo và ôn từ vựng tùy ý để nhớ lâu hơn
++          </p>
++        </div>
++      </div>
++
++      {/* Toolbar */}
++      <div className="max-w-7xl mx-auto px-6 py-6">
++        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
++          {/* Create New Button */}
++          <Button
++            onClick={() => router.push('/flashcard/create')}
++            variant="outline"
++            className="border-2 border-[#4CAF50] text-[#4CAF50] hover:bg-[#4CAF50] hover:text-white transition-colors w-full md:w-auto"
++          >
++            <Plus className="mr-2 h-5 w-5" />
++            Tạo mới
++          </Button>
++
++          {/* Sort Dropdown */}
++          <Button variant="outline" className="w-full md:w-auto">
++            <SortAsc className="mr-2 h-4 w-4" />
++            Sort by
++          </Button>
++
++          {/* Search */}
++          <div className="relative w-full md:w-80">
++            <Input
++              type="text"
++              placeholder="Search..."
++              value={searchQuery}
++              onChange={(e) => setSearchQuery(e.target.value)}
++              className="pr-10 rounded-full"
++            />
++            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
++          </div>
++        </div>
++      </div>
++
++      {/* Flashcard Grid */}
++      <div className="max-w-7xl mx-auto px-6 pb-12">
++        {filteredSets.length === 0 ? (
++          <div className="text-center py-20">
++            <div className="text-6xl mb-4">📚</div>
++            <h3 className="text-2xl font-bold text-gray-700 mb-2">
++              {searchQuery ? 'Không tìm thấy thẻ nào' : 'Chưa có thẻ học nào'}
++            </h3>
++            <p className="text-gray-500 mb-6">
++              {searchQuery
++                ? 'Thử từ khóa khác hoặc tạo thẻ mới'
++                : 'Tạo thẻ đầu tiên để bắt đầu học từ vựng'}
++            </p>
++            {!searchQuery && (
++              <Button
++                onClick={() => router.push('/flashcard/create')}
++                className="bg-[#4CAF50] hover:bg-[#45A049]"
++              >
++                Tạo thẻ đầu tiên
++              </Button>
++            )}
++          </div>
++        ) : (
++          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
++            {filteredSets.map((set) => (
++              <FlashcardSetCard key={set.id} set={set} />
++            ))}
++          </div>
++        )}
++      </div>
++    </div>
++  );
++}
++
++// Flashcard Set Card Component
++function FlashcardSetCard({ set }: { set: FlashcardSet }) {
++  const router = useRouter();
++
++  const heightClass =
++    set.height_custom && set.height_custom > 200
++      ? 'min-h-[300px]'
++      : set.height_custom && set.height_custom < 160
++      ? 'min-h-[145px]'
++      : 'min-h-[200px]';
++
++  return (
++    <div
++      onClick={() => router.push(`/flashcard/study/${set.id}`)}
++      className={`relative rounded-2xl p-6 shadow-md hover:shadow-xl hover:scale-[1.02] transition-all duration-300 cursor-pointer ${heightClass}`}
++      style={{
++        backgroundColor: set.background_color,
++      }}
++    >
++      {/* Icon */}
++      {set.icon && (
++        <div className="text-4xl mb-3" style={{ fontSize: '32px' }}>
++          {set.icon}
++        </div>
++      )}
++
++      {/* Title */}
++      <h3 className="text-2xl font-bold mb-2 line-clamp-2" style={{ color: '#000' }}>
++        {set.set_name}
++      </h3>
++
++      {/* Description */}
++      {set.description && (
++        <p className="text-sm opacity-80 mb-4 line-clamp-2" style={{ color: '#000' }}>
++          {set.description}
++        </p>
++      )}
++
++      {/* Card Count */}
++      <div className="absolute bottom-6 left-6">
++        <p className="text-base font-medium opacity-80" style={{ color: '#000' }}>
++          {set.card_count || 0} Cards
++        </p>
++      </div>
++
++      {/* Menu Button */}
++      <button
++        onClick={(e) => {
++          e.stopPropagation();
++          // TODO: Open menu
++        }}
++        className="absolute bottom-6 right-6 w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/10 transition-colors"
++      >
++        <span className="text-xl" style={{ color: '#000' }}>
++          ⋮
++        </span>
++      </button>
++    </div>
++  );
++}
+diff --git a/frontend/src/app/(protected)/profile/page.tsx b/frontend/src/app/(protected)/profile/page.tsx
+index c38f0b7..7ff191d 100644
+--- a/frontend/src/app/(protected)/profile/page.tsx
++++ b/frontend/src/app/(protected)/profile/page.tsx
+@@ -3,7 +3,7 @@ import ProfileForm from "@/components/settings/ProfileForm";
+ import { cookies } from "next/headers";
+ import { redirect } from "next/navigation";
+ 
+-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
++const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4001';
+ 
+ async function getUser() {
+     const cookieStore = await cookies();
+diff --git a/frontend/src/components/settings/ProfileForm.tsx b/frontend/src/components/settings/ProfileForm.tsx
+index 7541893..4ba9ab7 100644
+--- a/frontend/src/components/settings/ProfileForm.tsx
++++ b/frontend/src/components/settings/ProfileForm.tsx
+@@ -19,12 +19,17 @@ import { useAuth } from "@/context/AuthContext"; // Thêm để lấy user từ
+ // SỬ DỤNG BIẾN CÔNG KHAI
+ const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+ 
+-// URLs AVATAR MẪU
+-const DEFAULT_AVATARS_URLS = [
++// URLs AVATAR MẪU - Sử dụng placeholder nếu Cloudinary chưa được cấu hình
++const DEFAULT_AVATARS_URLS = CLOUDINARY_CLOUD_NAME ? [
+     `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v1761818581/default-1_pdkizs.jpg`,
+     `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v1761818581/default-2_t7bzsx.jpg`,
+     `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v1761818581/default-3_jj31er.jpg`,
+     `https://res.cloudinary.com/${CLOUDINARY_CLOUD_NAME}/image/upload/v1761818581/default-4_tn4p9h.jpg`,
++] : [
++    'https://api.dicebear.com/7.x/avataaars/svg?seed=default1',
++    'https://api.dicebear.com/7.x/avataaars/svg?seed=default2',
++    'https://api.dicebear.com/7.x/avataaars/svg?seed=default3',
++    'https://api.dicebear.com/7.x/avataaars/svg?seed=default4',
+ ];
+ 
+ // Dữ liệu cho Level Selector
+diff --git a/frontend/src/lib/api/auth.ts b/frontend/src/lib/api/auth.ts
+index 404eaa9..1bb468c 100644
+--- a/frontend/src/lib/api/auth.ts
++++ b/frontend/src/lib/api/auth.ts
+@@ -1,6 +1,6 @@
+ // frontend/src/lib/api/auth.ts
+ 
+-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
++const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4001';
+ 
+ // 1. Định nghĩa các Type cơ bản (Giúp TypeScript hoạt động hiệu quả hơn)
+ 
+diff --git a/frontend/src/lib/api/axiosInstance.ts b/frontend/src/lib/api/axiosInstance.ts
+index fb45e3b..1a3bedc 100644
+--- a/frontend/src/lib/api/axiosInstance.ts
++++ b/frontend/src/lib/api/axiosInstance.ts
+@@ -2,7 +2,7 @@
+ 
+ import axios from 'axios';
+ 
+-const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4000';
++const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:4001';
+ console.log('AXIOS_CONFIG: BASE_URL set to', BASE_URL);
+ 
+ const axiosInstance = axios.create({
+diff --git a/frontend/src/lib/api/flashcard.ts b/frontend/src/lib/api/flashcard.ts
+new file mode 100644
+index 0000000..f0a4832
+--- /dev/null
++++ b/frontend/src/lib/api/flashcard.ts
+@@ -0,0 +1,125 @@
++// frontend/src/lib/api/flashcard.ts
++// API service functions for flashcard endpoints
++
++import axiosInstance from './axiosInstance';
++import {
++  FlashcardSet,
++  FlashcardSetWithCards,
++  CreateFlashcardSetDto,
++  UpdateFlashcardSetDto,
++  AddCardToSetDto,
++  UpdateCardStatusDto,
++  FlashcardCard,
++  QuizForSet,
++  FlashcardApiResponse,
++} from '../types/flashcard';
++
++const FLASHCARD_BASE_URL = '/api/flashcards';
++
++/**
++ * Lấy tất cả flashcard sets của user
++ */
++export const fetchUserFlashcardSets = async (): Promise<FlashcardSet[]> => {
++  const response = await axiosInstance.get<FlashcardApiResponse<FlashcardSet[]>>(
++    `${FLASHCARD_BASE_URL}/sets`
++  );
++  return response.data.data;
++};
++
++/**
++ * Lấy chi tiết 1 flashcard set với cards
++ */
++export const fetchFlashcardSetById = async (setId: number): Promise<FlashcardSetWithCards> => {
++  const response = await axiosInstance.get<FlashcardApiResponse<FlashcardSetWithCards>>(
++    `${FLASHCARD_BASE_URL}/sets/${setId}`
++  );
++  return response.data.data;
++};
++
++/**
++ * Tạo flashcard set mới
++ */
++export const createFlashcardSet = async (data: CreateFlashcardSetDto): Promise<FlashcardSet> => {
++  const response = await axiosInstance.post<FlashcardApiResponse<FlashcardSet>>(
++    `${FLASHCARD_BASE_URL}/sets`,
++    data
++  );
++  return response.data.data;
++};
++
++/**
++ * Update flashcard set
++ */
++export const updateFlashcardSet = async (
++  setId: number,
++  data: UpdateFlashcardSetDto
++): Promise<FlashcardSet> => {
++  const response = await axiosInstance.put<FlashcardApiResponse<FlashcardSet>>(
++    `${FLASHCARD_BASE_URL}/sets/${setId}`,
++    data
++  );
++  return response.data.data;
++};
++
++/**
++ * Xóa flashcard set
++ */
++export const deleteFlashcardSet = async (setId: number): Promise<void> => {
++  await axiosInstance.delete(`${FLASHCARD_BASE_URL}/sets/${setId}`);
++};
++
++/**
++ * Thêm card vào set
++ */
++export const addCardToSet = async (
++  setId: number,
++  data: AddCardToSetDto
++): Promise<FlashcardCard> => {
++  const response = await axiosInstance.post<FlashcardApiResponse<FlashcardCard>>(
++    `${FLASHCARD_BASE_URL}/sets/${setId}/cards`,
++    data
++  );
++  return response.data.data;
++};
++
++/**
++ * Xóa card khỏi set
++ */
++export const removeCardFromSet = async (setId: number, vocabId: number): Promise<void> => {
++  await axiosInstance.delete(`${FLASHCARD_BASE_URL}/sets/${setId}/cards/${vocabId}`);
++};
++
++/**
++ * Update card status
++ */
++export const updateCardStatus = async (
++  setId: number,
++  vocabId: number,
++  data: UpdateCardStatusDto
++): Promise<FlashcardCard> => {
++  const response = await axiosInstance.put<FlashcardApiResponse<FlashcardCard>>(
++    `${FLASHCARD_BASE_URL}/sets/${setId}/cards/${vocabId}`,
++    data
++  );
++  return response.data.data;
++};
++
++/**
++ * Update study progress (last_studied_at)
++ */
++export const updateStudyProgress = async (setId: number): Promise<FlashcardSet> => {
++  const response = await axiosInstance.put<FlashcardApiResponse<FlashcardSet>>(
++    `${FLASHCARD_BASE_URL}/sets/${setId}/study`
++  );
++  return response.data.data;
++};
++
++/**
++ * Get quiz for flashcard set
++ */
++export const getQuizForSet = async (setId: number): Promise<QuizForSet> => {
++  const response = await axiosInstance.get<FlashcardApiResponse<QuizForSet>>(
++    `${FLASHCARD_BASE_URL}/sets/${setId}/quiz`
++  );
++  return response.data.data;
++};
+diff --git a/frontend/src/lib/types/flashcard.ts b/frontend/src/lib/types/flashcard.ts
+new file mode 100644
+index 0000000..3081689
+--- /dev/null
++++ b/frontend/src/lib/types/flashcard.ts
+@@ -0,0 +1,128 @@
++// frontend/src/lib/types/flashcard.ts
++// TypeScript interfaces cho flashcard system
++
++export interface FlashcardSet {
++  id: number;
++  user_id: number;
++  set_name: string;
++  description?: string | null;
++  background_color: string;
++  icon?: string | null;
++  width_size: string; // 'small' | 'medium' | 'large'
++  height_custom?: number | null;
++  theme_tag?: string | null;
++  last_studied_at?: string | null; // ISO date string
++  created_at: string;
++  updated_at: string;
++  card_count?: number; // Calculated field
++}
++
++export interface FlashcardCard {
++  set_id: number;
++  vocab_id: number;
++  status: FlashcardStatus;
++  vocab?: VocabData;
++}
++
++export interface FlashcardSetWithCards extends FlashcardSet {
++  cards: FlashcardCard[];
++  user_flashcard_cards: FlashcardCard[]; // Alias from Prisma
++}
++
++export type FlashcardStatus = 'new' | 'learned' | 'review' | 'mastered';
++
++export interface VocabData {
++  id: number;
++  internalId: string;
++  word: string;
++  type?: string | null;
++  cefr?: string | null;
++  ipa_us?: string | null;
++  ipa_uk?: string | null;
++  meaning_en: string;
++  meaning_vn?: string | null;
++  example?: string | null;
++  audio_url?: string | null;
++  audio_url_uk?: string | null;
++  created_at: string;
++  theme_id?: number | null;
++  lesson_id?: number | null;
++  theme?: {
++    id: number;
++    name: string;
++    level: string;
++  } | null;
++  lesson?: {
++    id: number;
++    name: string;
++    order: number;
++  } | null;
++}
++
++export interface CreateFlashcardSetDto {
++  set_name: string;
++  description?: string;
++  background_color?: string;
++  icon?: string;
++  width_size?: string;
++  height_custom?: number;
++  theme_tag?: string;
++}
++
++export interface UpdateFlashcardSetDto {
++  set_name?: string;
++  description?: string;
++  background_color?: string;
++  icon?: string;
++  width_size?: string;
++  height_custom?: number;
++  theme_tag?: string;
++}
++
++export interface AddCardToSetDto {
++  vocab_id: number;
++  status?: FlashcardStatus;
++}
++
++export interface UpdateCardStatusDto {
++  status: FlashcardStatus;
++}
++
++export interface QuizForSet {
++  set_id: number;
++  set_name: string;
++  theme_tag?: string | null;
++  quizzes: Quiz[];
++}
++
++export interface Quiz {
++  id: number;
++  user_id: number;
++  type: QuizType;
++  context: QuizContext;
++  theme_tag?: string | null;
++  questions_json: any; // JSON data
++  answers_json: any; // JSON data
++  score: number;
++  is_passed: boolean;
++  completed_at: string;
++  lesson_id?: number | null;
++  flashcard_set_id?: number | null;
++}
++
++export type QuizType = 'multiple_choice' | 'fill_blank' | 'connect' | 'mixed';
++
++export type QuizContext = 'vocab_end' | 'flashcard_set' | 'tutorial_step' | 'general';
++
++// API Response types
++export interface FlashcardApiResponse<T> {
++  success: boolean;
++  data: T;
++  message?: string;
++}
++
++export interface FlashcardErrorResponse {
++  success: false;
++  message: string;
++  statusCode?: number;
++}
+diff --git a/frontend/src/styles/globals.css b/frontend/src/styles/globals.css
+index 96a0562..6d39ad2 100644
+--- a/frontend/src/styles/globals.css
++++ b/frontend/src/styles/globals.css
+@@ -83,6 +83,20 @@
+     }
+   }
+ 
++  /* Flashcard 3D Flip Animation Utilities */
++  .preserve-3d {
++    transform-style: preserve-3d;
++  }
++
++  .backface-hidden {
++    backface-visibility: hidden;
++    -webkit-backface-visibility: hidden;
++  }
++
++  .rotate-y-180 {
++    transform: rotateY(180deg);
++  }
++
+   /* Định nghĩa các lớp tiện ích Tailwindcss */
+   .header-gradient-border {
+     border-image: linear-gradient(to right, rgba(22, 97, 88, 0.5), rgba(196, 211, 210, 0.5)) 1;
+diff --git a/test-api.js b/test-api.js
+new file mode 100644
+index 0000000..b6737a7
+--- /dev/null
++++ b/test-api.js
+@@ -0,0 +1,42 @@
++// Simple API test script
++const http = require('http');
++
++// Test 1: Check if server is running
++const options = {
++  hostname: 'localhost',
++  port: 4001,
++  path: '/api/flashcards/sets',
++  method: 'GET',
++  headers: {
++    'Content-Type': 'application/json',
++  }
++};
++
++console.log('🔍 Testing Flashcard API...\n');
++
++const req = http.request(options, (res) => {
++  console.log(`✅ Server responded with status: ${res.statusCode}`);
++  console.log(`Headers:`, res.headers);
++
++  let data = '';
++  res.on('data', (chunk) => {
++    data += chunk;
++  });
++
++  res.on('end', () => {
++    try {
++      const json = JSON.parse(data);
++      console.log('\n📦 Response body:');
++      console.log(JSON.stringify(json, null, 2));
++    } catch (e) {
++      console.log('\n📦 Response body (not JSON):');
++      console.log(data);
++    }
++  });
++});
++
++req.on('error', (error) => {
++  console.error('❌ Error:', error.message);
++});
++
++req.end();
+-- 
+2.45.2.windows.1
+
